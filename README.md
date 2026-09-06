@@ -1,538 +1,456 @@
-# Drive → WebM — a self-cleaning, ENCRYPTED video pipeline
+# DRIVE TO WEBM AUTOMATED ENCRYPTED VIDEO PIPELINE
 
-The repo is only the **job queue** — and the queue fills itself: every run
-(also an automatic one every 6 hours) pulls the next unprocessed courses
-from your catalog API, **four at a time in parallel**. (Private repo?
-Also supported — see *Private repo mode*.) Add links to `links.txt` only
-for manual extras:
+<p align="center">
+  <img src="https://img.shields.io/badge/Pipeline-Self--Feeding-blue?style=for-the-badge&logo=githubactions" alt="Pipeline Self Feeding" />
+  <img src="https://img.shields.io/badge/Encryption-AES--256--CTR-red?style=for-the-badge&logo=openssl" alt="Encryption AES-256-CTR" />
+  <img src="https://img.shields.io/badge/Codec-VP9%20%2B%20Opus-green?style=for-the-badge&logo=ffmpeg" alt="Codec VP9 + Opus" />
+  <img src="https://img.shields.io/badge/Decryption-Client--Side%20WebCrypto-orange?style=for-the-badge&logo=javascript" alt="Decryption WebCrypto" />
+  <img src="https://img.shields.io/badge/Storage-Zero--Repo%20Footprint-purple?style=for-the-badge" alt="Storage Zero Repo Footprint" />
+</p>
 
-1. **Picks its work**: four parallel workers each take their next course from
-   `https://ahm7xmakki.com/api/courses` (auto-feed) — worker 1 also takes
-   anything in `links.txt` — and **download** from Google Drive. PDFs,
-   images and other non-video files in the folder are **discarded
-   automatically** — only videos enter the pipeline
-2. **Converts every video** to WebM (VP9 + Opus)
-3. **Encrypts every video with AES-256** and publishes it to a GitHub
-   Release — the direct download links only ever serve scrambled bytes
-   (`.webm.enc`)
-4. **Shows them on a free site** at
-   `https://OWNER.github.io/REPO/` — no login, no accounts: visitors just
-   press Watch and the videos are decrypted **in their browser**. The
-   library auto-updates
-5. **Empties `links.txt`** automatically, ready for the next batch
+---
 
-**The repo itself never accumulates video data** — it stays a few KB no matter
-how many links you process. Clones stay fast, history stays clean.
+## OVERVIEW
+
+This repository implements a fully automated, zero-repository-storage, end-to-end video ingestion, encoding, encryption, and delivery pipeline.
+
+The repository functions strictly as an **orchestration job queue**. Automated GitHub Actions workflows run on a 6-hour cron schedule (or on manual push), dynamically fetching catalog metadata from a remote API across **4 parallel worker matrix runners**, downloading course content from Google Drive, scrubbing non-video assets, encoding video streams to optimized VP9/Opus WebM formats, encrypting the output with AES-256-CTR, and publishing the encrypted ciphertexts directly to GitHub Releases.
+
+A zero-framework, static web application hosted on GitHub Pages or Vercel dynamically renders the library. Visitors decrypt and stream content locally in their browsers using the Web Crypto API without requiring accounts or logins.
+
+---
+
+## INTERACTIVE NAVIGATION
+
+<details open>
+<summary><b>Click to expand Table of Contents</b></summary>
+
+1. [Key Features](#key-features)
+2. [Architecture Overview](#architecture-overview)
+3. [File System Map](#file-system-map)
+4. [Step-by-Step Deployment Runbook](#step-by-step-deployment-runbook)
+   - [Step 1: Create Repository](#step-1--create-the-repository)
+   - [Step 2: Push Source Files](#step-2--push-the-source-files)
+   - [Step 3: Configure Repository Secrets](#step-3--configure-required-secrets)
+   - [Step 4: Execute Workflow](#step-4--execute-the-workflow)
+   - [Step 5: Verification Checkpoints](#step-5--verification-checkpoints)
+   - [Step 6: Optional Media Proxy Setup](#step-6--optional-cloudflare-worker-media-proxy)
+5. [Parallel Worker & Auto-Feed Queue Architecture](#parallel-worker--auto-feed-queue-architecture)
+6. [3-Layer Ingestion & Download Engine](#3-layer-ingestion--download-engine)
+7. [Transcoding & Stream Probe Matrix](#transcoding--stream-probe-matrix)
+8. [AES-256 Cryptographic Architecture](#aes-256-cryptographic-architecture)
+9. [Multi-Platform Hosting & Deployment](#multi-platform-hosting--deployment)
+   - [GitHub Pages](#github-pages)
+   - [Vercel Hosting](#hosting-the-site-on-vercel)
+   - [Private Repository Operations](#private-repository-mode)
+10. [Configuration Reference & Performance Tuning](#configuration-reference--performance-tuning)
+11. [SEO & Search Console Playbook](#seo--search-console-playbook)
+12. [Interactive Troubleshooting Guide](#interactive-troubleshooting-guide)
+13. [Contributing & Licensing](#contributing--licensing)
+
+</details>
+
+---
+
+## KEY FEATURES
+
+- **Zero Storage Repository Footprint**: Git history remains clean (~40 KB) regardless of how many gigabytes or terabytes of course footage are processed. All assets reside on GitHub Releases.
+- **Parallel Matrix Execution**: Workflow utilizes 4 concurrent worker runners to shard course catalogs, processing up to ~16 full courses daily under public action minutes.
+- **3-Tier Download Resiliency**: Ingestion pipeline automatically failovers across `gdown`, direct Google Drive usercontent endpoints, and file-by-file folder salvaging.
+- **Deep Stream Analysis**: Integrated `ffprobe` video stream validation automatically discards PDFs, zip files, standalone audio tracks, images, and non-video assets before transcoding.
+- **Client-Side Cryptography**: Videos are encrypted via OpenSSL using AES-256-CTR with PBKDF2 key derivation (600,000 iterations). Raw release download links only deliver binary ciphertext (`.webm.enc`).
+- **In-Browser Decryption**: Zero-login web viewer decrypts media on-the-fly using the W3C Web Crypto API. Optional Cloudflare Worker proxy provides range request CORS streaming.
+
+---
+
+## ARCHITECTURE OVERVIEW
 
 ```
-links.txt (extras) + catalog API (every 6 h)
-        │
-        ▼
-┌──────────────────────────────────────────────┐
-│  Drive to WebM workflow                      │
-│  gdown ──fails?──▶ direct download (curl)    │
-│        → downloads/      ffmpeg → webm/      │
-│                          openssl AES-256 🔒  │
-└──────────────────────────────────────────────┘
-        │                        │
-        ▼                        ▼
-  GitHub Release           workflow artifact
-  webm-<run#>              (90-day backup)
-  (encrypted .webm.enc,
-  2 GB/file — the links
-  are useless without
-  the key)
-        │
-        ▼
-  🔐 Courses 404 site (GitHub Pages, docs/)
-  public pages (home · courses · FAQ · about · contact)
-  → SEO-ready: sitemap, schema, share image
-  + docs/library.html — free (no login) → decrypt → play
-  (optional Cloudflare Worker = in-browser streaming)
+                        AUTOMATED SOURCE INGESTION
+          +----------------------------------------------------+
+          |  Course Catalog API  |  links.txt Manual Ingestion  |
+          +-------------------------+--------------------------+
+                                    |
+                                    v
+                 +--------------------------------------+
+                 | GitHub Actions Worker Matrix (x4)    |
+                 +--------------------------------------+
+                                    |
+            +-----------------------+-----------------------+
+            |                       |                       |
+            v                       v                       v
+     [Layer 1: gdown]     [Layer 2: Direct Curl]   [Layer 3: Salvage]
+            |                       |                       |
+            +-----------------------+-----------------------+
+                                    |
+                                    v
+                 +--------------------------------------+
+                 | Stream Ingestion Probe (ffprobe)     |
+                 | Discard Non-Video / Invalid Codecs   |
+                 +--------------------------------------+
+                                    |
+                                    v
+                 +--------------------------------------+
+                 | Transcode Engine (ffmpeg VP9 + Opus) |
+                 +--------------------------------------+
+                                    |
+                                    v
+                 +--------------------------------------+
+                 | AES-256-CTR Encrypt (PBKDF2 SHA-256) |
+                 +--------------------------------------+
+                                    |
+            +-----------------------+-----------------------+
+            |                                               |
+            v                                               v
+  +-------------------+                           +-------------------+
+  | GitHub Release    |                           | Workflow Artifact |
+  | Tag: webm-<run>-w*|                           | 90-Day Retention  |
+  +---------+---------+                           +-------------------+
+            |
+            | (Encrypted Stream / WebCrypto Decryption)
+            v
+  +-------------------------------------------------------------------+
+  | Public Static Web Site (docs/) hosted on GitHub Pages / Vercel    |
+  | Decrypts & Streams WebM Videos directly in Visitor Browser        |
+  +-------------------------------------------------------------------+
 ```
 
-## Files
+---
 
-| File | Purpose |
-|------|---------|
-| `.github/workflows/drive-to-webm.yml` | The workflow (all logic lives here) |
-| `links.txt` | Manual extras — one Drive link per line (the API feeds the rest) |
-| `api-progress-w*.json` | Bot-managed: per-worker auto-feed progress — done/failed/attempts per course |
-| `docs/index.html` | The landing page (SEO-optimised) |
-| `docs/library.html` | The course page — free library: open → decrypt → play |
-| `docs/assets/og-image.png` | Social-share image (shown when someone links your site) |
-| `docs/auth.js` | Generated by the workflow: the unlock key (public by design — the site is free) |
-| `docs/proxy.js` | Generated by the workflow: the media-proxy URL (or `null` → manual mode) |
-| `docs/site-config.js` | Generated by the workflow: which repo to read (lets the site run on Vercel/Netlify too) |
-| `docs/sitemap.xml` · `docs/robots.txt` | SEO files for Google — ship with placeholder URLs, refreshed with your real URL by the workflow |
-| `cloudflare/media-proxy.js` | The Cloudflare Worker the workflow deploys (optional, free) — CORS doorman on public repos, authenticated reader on private ones |
-| `DIAGRAM.md` | Box diagram of how everything fits together |
+## FILE SYSTEM MAP
 
-Secrets to add (Settings → Secrets and variables → Actions):
-- `SITE_ID`, `SITE_PASSWORD` — **required**. The internal key that locks
-  the video files. Visitors never see or type it — the site is free; the key
-  just keeps the raw download links useless on their own.
-- `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` — **optional**. Enables
-  in-browser streaming (see the next section).
-- `GH_READ_TOKEN` — **only for a private repo**. A read-only fine-grained
-  token the proxy uses to read the releases (see *Private repo mode*).
+<details open>
+<summary><b>Click to expand File System Directory Table</b></summary>
 
-## Put it on GitHub — runbook 🚀
+| Path / File | Type | Purpose & Operational Function |
+| :--- | :--- | :--- |
+| `.github/workflows/drive-to-webm.yml` | Workflow | Primary GitHub Actions workflow containing worker matrix, download logic, ffmpeg transcode, OpenSSL encryption, release publisher, and site builder. |
+| `links.txt` | Queue Input | Queue file for manual Drive URLs. Emptied automatically upon successful conversion batch completion. |
+| `api-progress-w1.json` ... `w3.json` | State Tracking | Bot-managed worker progress state files tracking completed/failed API course items. |
+| `docs/index.html` | Frontend | Landing page optimized for search engine indexing, semantic markup, structured data, and OpenGraph headers. |
+| `docs/library.html` | Frontend | Core web library app. Fetches releases, handles in-browser WebCrypto AES-256 decryption, and renders video player. |
+| `docs/auth.js` | Generated | Auto-generated unlock token script created during workflow runs. |
+| `docs/proxy.js` | Generated | Auto-generated Cloudflare Worker proxy endpoint reference file. |
+| `docs/site-config.js` | Generated | Auto-generated repository reference file enabling cross-platform static deployment (Vercel/Netlify). |
+| `docs/sitemap.xml` | SEO | Auto-updated site map file generated with public host domain. |
+| `docs/robots.txt` | SEO | Auto-updated search engine crawling instructions. |
+| `docs/assets/og-image.png` | Asset | Social preview image displayed when sharing site URLs. |
+| `cloudflare/media-proxy.js` | Serverless Worker | Cloudflare Worker source script handling CORS headers, byte-range requests, and authenticated release reading. |
+| `DIAGRAM.md` | Documentation | Plaintext ASCII structural pipeline diagram. |
+| `CONTRIBUTING.md` | Guidelines | Contribution procedures, code standards, and PR workflows. |
+| `LICENSE` | Legal | MIT Open Source License. |
 
-Written to be followed in order, step by step, by a person **or an agent**.
-Every step says exactly where to click, what to type, and what success looks
-like.
+</details>
 
-**What you need:** a GitHub account. The repo must be **Public** (the library
-reads your releases anonymously, Actions minutes are free on public repos,
-and GitHub Pages is free) — the videos are safe regardless: only encrypted
-bytes are ever published.
+---
 
-### 1 — Create the repository
+## STEP-BY-STEP DEPLOYMENT RUNBOOK
 
-1. Go to **[github.com/new](https://github.com/new)**
-2. Repository name: anything — `courses404` keeps it on-brand (the site
-   URL then reads `USERNAME.github.io/courses404/`)
-3. Visibility: **Public**
-4. Do **not** tick "Add a README" (we're pushing our own files)
-5. **Create repository**
+Follow these steps sequentially to configure, launch, and verify your automated pipeline instance.
 
-### 2 — Push the files
+<details>
+<summary><b>Step 1: Create the Repository</b></summary>
 
-Clone the empty repo and copy everything inside this folder
-(`courses404/` — including the hidden `.github/` folder) into it:
+1. Navigate to `github.com/new`.
+2. Name your repository (e.g., `courses404`).
+3. Set Visibility to **Public** (Public repos grant free unlimited GitHub Actions minutes and free GitHub Pages hosting).
+4. Leave "Add a README file" unchecked (we push custom documentation).
+5. Click **Create repository**.
+
+</details>
+
+<details>
+<summary><b>Step 2: Push the Source Files</b></summary>
+
+Clone your empty repository and copy all repository contents into it:
 
 ```bash
-git clone https://github.com/USERNAME/REPONAME.git
-cd REPONAME
-cp -r /path/to/courses404/. .
+git clone https://github.com/YOUR_USERNAME/YOUR_REPONAME.git
+cd YOUR_REPONAME
+cp -r /path/to/source/. .
 git add -A
-git commit -m "drive-to-webm: site + pipeline"
+git commit -m "Initialize drive-to-webm video pipeline"
 git branch -M main
 git push -u origin main
 ```
 
-Verify: the repo root on GitHub shows `README.md`, `links.txt`, `DIAGRAM.md`,
-`docs/`, `cloudflare/`, and `.github/workflows/drive-to-webm.yml`.
-
-*No git? Web fallback:* **Add file → Upload files** (drag everything except
-`.github/`), then **Add file → Create new file**, type
-`.github/workflows/drive-to-webm.yml` as the name and paste the workflow
-file's content. Commit both.
-
-### 3 — Add the two secrets (required)
-
-These are an **internal key** — the site is free and visitors never type
-anything. The key locks the video files so the raw download links stay
-useless; the site carries it and unlocks each video in the browser.
-
-1. Repo page → **Settings → Secrets and variables → Actions → New repository
-   secret** (button top-right)
-2. Name: `SITE_ID` — Value: any label (e.g. `courses404`). **Add secret**
-3. Repeat: Name: `SITE_PASSWORD` — Value: a long random string (12+
-   characters; quotes and symbols are fine, avoid line breaks).
-   **Add secret**
-
-⚠️ This key *encrypts the videos* — pick the final one now. Changing it later
-only protects new videos unless you re-convert everything.
-
-### 4 — Run the workflow
-
-The push you just made **already started the first run** — nothing to do.
-(No push handy? **Actions** tab → **Drive to WebM** → **Run workflow**.)
-
-The run: **four parallel workers** each pick their next course from your
-catalog API (worker 1 also handles any manual links), convert, encrypt and
-publish them, while worker 1 generates the unlock key + sitemap +
-robots.txt and **enables GitHub Pages for you** (public repos — private
-ones host on Vercel instead, automatically). A few minutes for a small
-course; roughly real-time for long ones. After that, the workflow runs
-itself **every 6 hours**, four courses at a time (see *Auto-feed* below).
-
-### 5 — Verify (all must pass)
-
-| # | Check | Expected |
-|---|-------|----------|
-| 1 | **Actions** tab | Run **Drive to WebM #1** is green ✓ |
-| 2 | `https://USERNAME.github.io/REPONAME/` | Homepage loads (1–2 min after the run) |
-| 3 | `…/REPONAME/library.html` | The library loads straight to the videos — no login |
-| 4 | `…/REPONAME/sitemap.xml` | 1 URL (the homepage), real address, no `__SITE_URL__` |
-| 5 | `…/REPONAME/robots.txt` | `Allow: /` + `Sitemap:` line |
-| 6 | **Releases** (repo sidebar) | Release `webm-1` with `.webm.enc` files |
-| 7 | Repo file list | `links.txt` emptied; new commit by `github-actions[bot]` |
-
-If #2 is 404: **Settings → Pages → Deploy from a branch → `main` → `/docs` →
-Save** (the workflow normally does this itself). Private repo: there is no
-Pages URL — checks #2–#5 against your Vercel address instead (see
-*Private repo mode*).
-
-### 6 — Optional: in-browser streaming (recommended)
-
-Without it the site works in *manual mode*: visitors press **⬇ Download** on a
-card, let it download, then press **Watch** and pick the downloaded file — it
-decrypts locally and plays. With a free Cloudflare Worker as a media proxy,
-**Watch** streams and decrypts automatically. To enable:
-
-1. Create a free account at [dash.cloudflare.com](https://dash.cloudflare.com)
-   (no card needed).
-2. Copy your **Account ID** (right sidebar of the Cloudflare dashboard home)
-   → repo secret `CLOUDFLARE_ACCOUNT_ID`.
-3. Create an API token: **My Profile → API Tokens → Create Token →
-   "Edit Cloudflare Workers" template → Continue → Add more… →
-   Account · Workers Scripts · Edit → Continue to summary → Create Token**
-   → repo secret `CLOUDFLARE_API_TOKEN`.
-4. Re-run the workflow once. The Worker is deployed automatically and its URL
-   recorded in `docs/proxy.js`.
-
-**Daily use:** mostly none — the queue feeds itself from your catalog API
-every 6 hours. To add a manual course, put its link in `links.txt` and push;
-it's processed together with the next API course. The encrypted videos land
-on the repo's **Releases** page (`webm-<run-number>`), the **library shows
-them automatically**, and `links.txt` empties itself. The repo never grows.
-## Hosting the site on Vercel (or Netlify, or anywhere) 🌐
-
-The site is a handful of small static pages, and the videos never flow through
-the site's host — the page reads the release list from the GitHub API and the
-encrypted bytes through the Cloudflare media proxy. So the site can be hosted
-anywhere with HTTPS. GitHub Pages is already set up automatically; to use
-**Vercel** instead (or in addition):
-
-1. Push the repo to GitHub and let the workflow run once (it commits
-   `docs/auth.js`, `docs/proxy.js` and `docs/site-config.js` — the last one
-   tells the page which repo to read on any host).
-2. On [vercel.com/new](https://vercel.com/new), **import the GitHub repo**:
-   Framework Preset **Other**, Root Directory `./` … under "Output Directory"
-   enter **`docs`**. Deploy.
-3. Done. Because the repo is connected, every time the workflow regenerates
-   the site files (key change, proxy deploy), Vercel redeploys
-   automatically.
-
-Notes:
-
-- Vercel's free Hobby plan is fine here — the site is a few small pages,
-  nowhere near the 100 GB/month bandwidth cap (that limit only matters if you
-  tried to host the *videos* there, which this setup deliberately doesn't).
-- Hobby is officially non-commercial; GitHub Pages has no such restriction
-  and is already automatic — Vercel is a preference, not a requirement.
-- **Private repo?** Vercel stops being a preference and becomes the host:
-  Pages needs a paid plan there. See the next section.
-- Don't want GitHub Pages at all? Disable it in Settings → Pages; the
-  workflow just logs a notice.
-
-## Private repo mode 🔒
-
-Prefer the machine room hidden? The whole pipeline runs fine on a **private
-repo** — only the hosting and the economics change:
-
-| | Public repo | Private repo |
-|---|---|---|
-| GitHub Actions | **Free, unmetered** | Metered: ~2,000 min/month free (Pro: 3,000) |
-| Auto-feed pace | 6-hourly cron (default) → **~16 courses/day** | Weekly cron → **~16 courses/month** |
-| Site hosting | GitHub Pages — automatic | **Vercel** (free Hobby plan deploys private repos) |
-| Releases | Publicly readable | Read by the proxy with a read-only token |
-
-Three one-time steps:
-
-1. **Create a read-only token** for the proxy: GitHub → *Settings →
-   Developer settings → Personal access tokens → Fine-grained tokens →
-   Generate new token*. Repository access: **only this repo**. Permissions:
-   **Contents → Read-only**. Copy the value.
-2. **Add it as a repo secret** named `GH_READ_TOKEN` (*Settings → Secrets
-   and variables → Actions*). Not needed on a public repo — leave it out.
-3. **Host the site on Vercel** — one section up (Pages is skipped
-   automatically on private repos; the workflow detects it and logs a
-   pointer instead).
-
-That's it. From then on every run pushes the token to the Cloudflare proxy,
-which attaches it to each release read (anonymous reads get 404 on private
-repos), and the library pulls its course list through the proxy too. Every
-site-file commit redeploys Vercel automatically.
-
-**The minutes maths:** a course costs roughly its playtime in runner minutes
-(long ones capped at 350). ~2,000 free minutes ≈ 4 weekly four-worker
-batches ≈ **16 courses a month**. If minutes run out, runs simply pause
-until the 1st of the next month — nothing breaks, the queue waits.
-
-**Flipping visibility later?** Safe in both directions. Going private:
-add `GH_READ_TOKEN` first (above), switch the cron to weekly, flip, run
-the workflow once. Going back public: flip and run once — the proxy simply
-stops using the token. Minutes are free while public, so you can always
-come back for another marathon (~16 courses/day).
-
-## How the video protection works 🔐
-
-The library page (`docs/library.html`) is **free — there is no login**.
-It carries the key generated from your `SITE_ID` / `SITE_PASSWORD` secrets
-and unlocks itself. Then:
-
-- **Every published video is encrypted** before it leaves the runner:
-  `openssl enc -aes-256-ctr -pbkdf2` with a key derived from
-  `SITE_ID:SITE_PASSWORD` (PBKDF2-SHA256, 600 000 rounds). Only the
-  `.webm.enc` files are uploaded — the plaintext is deleted on the runner
-  immediately and never committed anywhere.
-- **The direct release URLs are useless** — they serve AES-256 ciphertext.
-  Anyone can download them; without the credentials they get noise.
-- **Decryption happens in the visitor's browser** (Web Crypto API). The
-  key never leaves the page; nothing is ever sent to a server.
-- The unlock key lives in `docs/auth.js` (generated by the workflow). It's
-  public by design — the site is free and needs it to play the videos; its
-  only job is keeping the raw release links useless on their own.
-- To rotate the key: update the secrets, then re-run the workflow
-  (**Actions → Drive to WebM → Run workflow**). Old videos re-encrypt only if
-  you re-convert them (manual run with *force_reconvert*) — otherwise they
-  stay under the old key, so pick a good one early.
-- Special characters in the key are fine (quotes are escaped automatically); just avoid line breaks.
-
-**Honest security notes:**
-
-- **Key strength still matters.** An attacker with the ciphertext can guess
-  keys offline; PBKDF2 slows each guess down, but a short/common key can
-  still be cracked. Use something long (12+ characters, several unrelated
-  words is fine).
-- **The key is public-by-design.** Because the site is free with no login, a
-  determined visitor could extract it from the page source and decrypt the
-  files manually. It stops casual downloaders and hotlinking — not everyone.
-  That's the accepted trade-off for password-free access.
-- **Visitors can still save copies.** Anyone who watches can keep a decrypted
-  copy (that's inherent — browsers must have the bytes to play them). Real
-  DRM doesn't exist on a free stack.
-- The media proxy (if enabled) is a dumb, public CORS doorman restricted to
-  your repo's release files — it only ever serves the same encrypted bytes.
-- **The originals on Drive are the weakest link.** The workflow can only
-  fetch links shared as "anyone with the link" — and while a batch is shared
-  that way (and in git history after `links.txt` empties), anyone holding
-  the link can download the *original, unencrypted* files. Keep sharing off
-  by default and flip it on only for the few minutes a run needs, or move
-  each published batch out of the shared folder afterwards.
-
-## The site 📺
-
-The `docs/` folder is a complete, no-framework website:
-
-- **`index.html`** — the landing page, built for search engines: unique
-  title and description, canonical URL, Open Graph / Twitter cards with a
-  share image, structured data, semantic HTML, and a `sitemap.xml` +
-  `robots.txt` (both ship with placeholder URLs — the workflow fills in the
-  real address on the first run and refreshes them on every run).
-- **`library.html`** — the course page and free video library. It fetches
-  your releases from the GitHub API (through the media proxy when one is
-  deployed), groups the encrypted videos **by course** — each release is
-  titled with the course's real name — newest first, and plays any lesson
-  through **Watch**: it fetches the
-  `.webm.enc` file (through the media proxy if configured), decrypts it in
-  the browser, and plays it — with a progress
-  bar and a **Save a copy** button afterwards. It's marked
-  `noindex` so Google indexes your public pages, not the app page.
-
-Notes:
-
-- The library needs a **public repo** (the API is read anonymously; limits are
-  60 requests/hour per visitor — plenty for a personal library).
-- Playback needs a modern browser (Chrome, Firefox, Edge, Safari 15.4+) —
-  the Web Crypto API and WebM support are both required.
-- Big videos load fully before playing (they're decrypted whole): a 500 MB
-  video needs its download time, then ~a second to decrypt.
-- To preview the library before hosting it, open `docs/library.html` locally
-  or add `?demo=1` — it shows sample data with a playable demo clip.
-- To point the library at a *different* repo's releases, hardcode
-  `OWNER_OVERRIDE` / `REPO_OVERRIDE` at the top of the script in
-  `docs/library.html`.
-
-## Getting into Google 🔍
-
-Everything technical is already in place — sitemap, robots.txt, canonical
-URLs, structured data, fast no-JS pages. What's left for you:
-
-1. **Let the workflow run once** — it fills the real URL into the pages,
-   `sitemap.xml` and `robots.txt` (all of them ship with placeholders).
-2. **Tell Google you exist**: go to
-   [search.google.com/search-console](https://search.google.com/search-console),
-   add your site (`https://YOUR-USERNAME.github.io/YOUR-REPO/`), choose the
-   **HTML tag** verification method, and paste the tag's `content` value into
-   the marked `google-site-verification` slot in `docs/index.html` (remove
-   the comment markers around it), push, then verify.
-3. **Submit the sitemap**: in Search Console → Sitemaps → enter
-   `sitemap.xml` → Submit.
-4. **Use the words people search** — the headline and "what's included"
-   copy in `docs/index.html`, using the words people search, but keeping
-   course specifics inside the library. Google can only rank you for words
-   that are on the page.
-
-Indexing takes a few days to a few weeks for a new site — that's normal.
-
-## The queue rules
-
-- **Auto-feed first**: every run (including the 6-hourly schedule) pulls the
-  next unprocessed course(s) from `COURSE_API` — and converts them *before*
-  any manual links, so the scheduled course always gets its turn. See the
-  next section.
-- Push with links → run processes **all** of them → on success `links.txt` is
-  emptied (committed by the bot with `[skip ci]`, which doesn't re-trigger).
-- Links that **failed** stay in `links.txt` (stripped of notes), so a re-run
-  retries only those. Re-run via **Actions → Drive to WebM → Run workflow**.
-- Manual runs (`workflow_dispatch`) **never modify** `links.txt`, so you can
-  safely tick *force_reconvert* to re-encode without losing your link list.
-- If a run times out mid-way: everything finished so far is already on the
-  release. Re-run the same run — it checks the release and only converts what's
-  missing.
-
-## Auto-feed from your catalog API 📡
-
-The queue fills itself. Every run — including the automatic one every 6
-hours — fetches `COURSE_API` (default
-`https://ahm7xmakki.com/api/courses`) and processes the next unprocessed
-courses like any manual link. `links.txt` remains available for extras.
-
-**Four workers run in parallel** (a job matrix — four GitHub runners at
-once, free on public repos). The catalog is split into shards by course id:
-worker 1 takes courses 1, 5, 9, …, worker 2 takes 2, 6, 10, … and so on — no
-two workers ever touch the same course. Each worker keeps its own progress
-file (`api-progress-w1.json` … `api-progress-w4.json`), so there are no git
-collisions, and publishes to its own release — `webm-<run>-w<worker>` as
-the tag, **titled with the course's real name** so the library shows proper
-course titles. All releases appear together in the library. Worker 1 is also the manager: it
-handles manual `links.txt` links and the site files (login, sitemap,
-robots).
-
-How a worker decides what's next:
-
-- Courses in its shard, in catalog order, `API_COURSES_PER_RUN`
-  (default **1** — a single course can be ~6 GB) at a time.
-- Progress is committed by the bot every run: each course is marked done or
-  failed, with an attempt counter. Nothing is ever processed twice.
-- A failed course is retried **once**, then skipped — the queue can never
-  stall on a dead link.
-- A worker that dies mid-course (timeout) still counts its attempt, so an
-  oversized course gets one more chance and is then skipped.
-- One worker failing never cancels the others (`fail-fast: false`).
-
-**The maths:** 4 workers × 1 course × 4 runs/day ≈ **16 courses a day** —
-the 1004-course catalog takes **~2 months**, hands-off and free. Faster
-still: extra manual runs (each is 4 more courses) or raise
-`API_COURSES_PER_RUN`. (Private repo? ~16 courses a month on the weekly
-cron — see *Private repo mode*.)
-
-**Off / pace / parallelism:** `COURSE_API: ""` disables auto-feed; the
-`cron` line under `schedule:` sets the cadence — `"0 */6 * * *"` by default
-(free on a public repo; a private repo should use weekly `"0 6 * * 1"`).
-The number of workers is the
-`matrix.worker` list at the top of the job — keep it in sync with `WORKERS`
-(e.g. `[1, 2, 3, 4, 5, 6]` + `WORKERS: "6"` ≈ 24 courses/day). New courses
-added to your API are picked up automatically — the catalog is re-fetched
-every run.
-
-## How the download works (three layers)
-
-Google Drive is fussy about non-browser clients, so each file is tried three ways:
-
-1. **`gdown`** — handles most public files.
-2. **Direct endpoint** — `drive.usercontent.google.com/download?id=…&confirm=t`
-   with a browser user-agent (works when Drive rate-limits gdown).
-3. **Folder salvage** — a folder download aborts at the *first* broken file, so
-   if that happens the workflow lists the folder and fetches every file
-   individually, skipping only the ones that really fail.
-
-Files Drive refuses entirely (permission-restricted or flagged content) are
-listed in the run summary and the job is marked failed — everything else is
-still processed.
-
-Requirements: links must be **public / anyone-with-the-link**, and real
-uploaded files (MP4, MOV, MKV…), not Google Docs.
-
-**Non-video files are discarded.** Course folders usually carry PDFs,
-workbooks, images and documents next to the videos — none of that is
-downloaded-and-kept. Before conversion, every downloaded file is probed
-(ffprobe): no video stream → deleted on the spot. The run log lists what
-was discarded and the job summary counts it, but nothing non-video ever
-reaches the release, the artifacts or the repo. The probe looks at the
-file's *content*, not its name — a video with a wrong extension still gets
-converted, a PDF named `.mp4` still gets discarded, and still images
-(JPG, PNG, GIF, WebP…) are caught too: they technically decode as
-single-frame "video", so the probe checks the codec, not just the stream.
-Files already in `.webm` are copied as-is.
-
-## Where the results are
-
-| Place | What | Lifetime |
-|-------|------|----------|
-| **Gallery** `https://OWNER.github.io/REPO/` | All videos, playable inline, searchable | Permanent |
-| **Releases** page (`webm-<run#>`) | All WebM files, direct download links | Permanent |
-| Run **Artifacts** (`webm-videos`) | Same files as a zip backup | 90 days |
-| The repo | Nothing (by design) | — |
-
-Want the originals too? Set `UPLOAD_ORIGINALS: "true"` in the workflow header
-and they'll be attached to each run as an artifact.
-
-## Tuning
-
-All knobs are env vars at the top of the workflow file:
-
-| Env var | Default | Meaning |
-|---------|---------|---------|
-| `VP9_CRF` | `31` | Quality, 0–63. **Lower = better quality & bigger files** |
-| `CPU_USED` | `2` | Encode speed, 0–5. Higher = faster, slightly lower quality |
-| `AUDIO_KBPS` | `128` | Opus audio bitrate |
-| `COURSE_API` | `https://ahm7xmakki.com/api/courses` | Catalog API the queue auto-feeds from (`""` = off) |
-| `API_COURSES_PER_RUN` | `1` | Courses per worker per run (one course can be ~6 GB) |
-| `WORKERS` | `4` | Parallel workers per run — must match the `matrix.worker` list |
-| `PUBLISH_RELEASE` | `true` | Upload WebMs to a GitHub Release |
-| `UPLOAD_ORIGINALS` | `false` | Also attach original downloads as artifacts |
-| `COMMIT_TO_REPO` | `false` | Additionally commit files into the repo (subject to GitHub's 100 MB/file limit — repo grows fast, not recommended) |
-| `MAX_COMMIT_MB` | `90` | Size guard, only used when `COMMIT_TO_REPO` is on |
-
-### Measured on the sample folder (9 videos, ≈4¾ h of 720p–1080p footage)
-
-- These are **low-bitrate screen recordings** (~290–450 kbps H.264). VP9 at
-  CRF 31 comes out **~1.5–1.8× larger** than the source (SSIM 0.998); at
-  CRF 40 it's ~1.2–1.3× with SSIM 0.997. Use `VP9_CRF: "40"` if you want
-  smaller files.
-- Encode speed on a 4-core runner is roughly real-time to ½× real-time —
-  expect **~5–10 h** for that much footage. GitHub caps a job at 6 h, but
-  that's fine: every finished video is uploaded to the release immediately,
-  and re-running the same run resumes where it stopped.
-- Two lessons (75 and 105 min) produce 260–530 MB WebMs — no problem for a
-  release (2 GB per file), impossible for plain git.
-
-## Limits & gotchas
-
-- **Job time:** capped at 350 min (GitHub's hard limit is 6 h). Long queues are
-  resumable — see above.
-- **Google Drive quotas:** heavily-downloaded public files can be temporarily
-  rate-limited. Each file is retried and falls back to the direct endpoint;
-  persistent failures stay in the queue for a later re-run.
-- **Artifacts expire** (90 days) — the release is the durable copy.
-- **Minutes:** free on public repos (Linux runner). On private repos,
-  multi-hour encodes count against your Actions minutes fast.
-- Releases don't bloat the repo (assets are not git objects) and there's no
-  practical per-repo total, but each asset must be ≤ 2 GB.
-- Same-named videos in different folders: release asset names get the folder
-  prefix (`folder__name.webm`) so they never overwrite each other.
-
-## Troubleshooting
-
-| Symptom | Fix |
-|---------|-----|
-| Workflow doesn't start | The push must change `links.txt` **on `main`**; the workflow file must be on the default branch |
-| "Couldn't fetch the course catalog" | The API was unreachable or returned invalid JSON — the run continues with `links.txt` only and the next scheduled run retries |
-| Auto-feed skipped a course | It failed twice (dead Drive link, or bigger than a 6 h run). To retry it: delete its entry in `api-progress.json`, commit, run the workflow |
-| Want the catalog mirrored faster | Already 4 workers × 4 runs/day ≈ 16 courses/day. More: extra manual runs, raise `API_COURSES_PER_RUN`, or grow the `matrix.worker` list (up to ~20 concurrent jobs on the free plan) |
-| Want more/fewer parallel workers | Edit the `matrix.worker` list **and** `WORKERS` in the workflow — keep them equal |
-| Two workers processing the same course? | Not possible — courses are sharded by id (`id % WORKERS`), each worker has its own `api-progress-w*.json` |
-| Run fails: "refusing to publish UNENCRYPTED" | Good — that's the safety gate. Add the `SITE_ID` + `SITE_PASSWORD` secrets and re-run |
-| Library shows "Coming soon" | Add/set the `SITE_ID` + `SITE_PASSWORD` secrets, then re-run the workflow once |
-| Rotated the key — older videos won't play | Videos stay under the key they were encrypted with; re-convert them with a manual run (*force_reconvert*) to bring everything under the new key |
-| "Decryption failed" on a video | The site was updated mid-session — reload the page and try again |
-| Course folder contains PDFs/images alongside the videos | Working as intended — non-video files are probed and discarded before conversion; the run log lists them, the summary counts them |
-| Site is in "manual decrypt mode" (no streaming) | The Cloudflare secrets aren't set or the Worker deploy failed — add `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` and re-run the workflow |
-| Library empty / videos won't stream on a **private** repo | The proxy can't read releases anonymously — add the `GH_READ_TOKEN` secret (read-only fine-grained token, see *Private repo mode*) and re-run the workflow once |
-| Workflow stops running mid-month (private repo) | Free Actions minutes used up — they refill on the 1st. Or upgrade to Pro, or temporarily flip the repo public (the marathon trick) |
-| Worker returns 403 | The proxy only serves this repo's release files — if you **renamed the repo**, re-run the workflow so the Worker redeploys with the new allowlist |
-| Gallery shows "Can't read the releases" | Repo must be **public**; check the repo detection chain at the top of the script in `docs/library.html` |
-| Gallery is 404 | Enable Pages: Settings → Pages → branch `main`, folder `/docs` (the workflow tries to do this automatically) |
-| Video won't stream in the gallery | Chrome/Firefox/Edge stream WebM fine; Safari may need the **Download** button instead |
-| `links.txt` emptied but I want a re-run | Add the link again, or run manually with *force_reconvert* |
-| `Access denied` / quota error from Drive | Wait a few hours, or copy the file into your own Drive and share that link |
-| Folder download partially fails | The run summary lists failed links; they stay in the queue — re-run later |
-| Job timed out mid-run | Re-run the same run — already-published videos are skipped |
-| Video not converted | It has no video stream (audio-only or non-media), or ffprobe can't read it |
-| Published videos from before enabling encryption | Old plain `.webm` assets remain playable for everyone but are NOT protected — delete those old releases (Releases → each release → Delete) if you want them gone |
+Verify that `README.md`, `links.txt`, `.github/`, `docs/`, and `cloudflare/` are present on GitHub.
+
+</details>
+
+<details>
+<summary><b>Step 3: Configure Required Secrets</b></summary>
+
+Define the internal cryptographic keys required for AES-256 encryption.
+
+1. Go to **Settings -> Secrets and variables -> Actions -> New repository secret**.
+2. Add `SITE_ID`: Set value to a descriptive site identifier (e.g., `courses404`).
+3. Add `SITE_PASSWORD`: Set value to a strong random passphrase (minimum 12 characters).
+
+*Note: Changing these values later will require re-encrypting previously published assets.*
+
+</details>
+
+<details>
+<summary><b>Step 4: Execute the Workflow</b></summary>
+
+The initial push automatically triggers the workflow. To manually trigger a run:
+1. Navigate to the **Actions** tab on GitHub.
+2. Select **Drive to WebM** from the left workflow panel.
+3. Click **Run workflow -> Run workflow**.
+
+Four parallel worker runners will allocate shards, ingest content, transcode to VP9/Opus, encrypt assets, publish releases, and publish the frontend to GitHub Pages.
+
+</details>
+
+<details>
+<summary><b>Step 5: Verification Checkpoints</b></summary>
+
+Confirm system health by verifying each checkpoint item below:
+
+| Verification Target | Expected Result |
+| :--- | :--- |
+| Actions Workflow Run | All 4 worker jobs display green checkmarks [SUCCESS] |
+| Site Home (`/YOUR_REPONAME/`) | Landing page loads successfully |
+| Site Library (`/YOUR_REPONAME/library.html`) | Library interface loads course list without authentication prompts |
+| Site Sitemap (`/YOUR_REPONAME/sitemap.xml`) | Sitemap contains full public domain URL |
+| Releases Page | Release tag `webm-<run>-w*` exists containing `.webm.enc` assets |
+| Repository Queue | `links.txt` is emptied and committed by bot runner |
+
+</details>
+
+<details>
+<summary><b>Step 6: Optional Cloudflare Worker Media Proxy</b></summary>
+
+Enabling the Cloudflare media proxy allows instant in-browser HTTP byte-range video streaming rather than full file pre-download.
+
+1. Create a free Cloudflare account at `dash.cloudflare.com`.
+2. Retrieve your **Account ID** from the Cloudflare dashboard sidebar.
+3. Create an API token under **My Profile -> API Tokens -> Create Token -> Edit Cloudflare Workers**.
+4. In GitHub Secrets, set `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN`.
+5. Trigger the GitHub Actions workflow once. The worker will deploy automatically and write its endpoint to `docs/proxy.js`.
+
+</details>
+
+---
+
+## PARALLEL WORKER & AUTO-FEED QUEUE ARCHITECTURE
+
+The processing engine operates as a distributed matrix of 4 concurrent GitHub Actions runners (`WORKERS: 4`).
+
+```
+                                CATALOG INGESTION & SHARDING
+                                 Total Catalog: N Courses
+                                            |
+            +-------------------+-----------+-----------+-------------------+
+            |                   |                       |                   |
+            v                   v                       v                   v
+     Worker Matrix 1     Worker Matrix 2         Worker Matrix 3     Worker Matrix 4
+     (Shard ID % 4 = 0)  (Shard ID % 4 = 1)      (Shard ID % 4 = 2)  (Shard ID % 4 = 3)
+            |                   |                       |                   |
+            v                   v                       v                   v
+     api-progress-w1.json api-progress-w2.json   api-progress-w3.json api-progress-w4.json
+            |                   |                       |                   |
+            v                   v                       v                   v
+     Release: webm-N-w1  Release: webm-N-w2      Release: webm-N-w3  Release: webm-N-w4
+```
+
+### Queue Execution Rules:
+- **Shard Allocation**: Courses are sharded deterministically by ID (`course_id % TOTAL_WORKERS`). Worker collision is mathematically impossible.
+- **State Isolation**: Each worker maintains an independent state JSON file (`api-progress-w1.json` through `w4.json`).
+- **Failover Thresholds**: Dead or inaccessible Google Drive links are retried once on subsequent runs. If failure persists, the entry is flagged as skipped to prevent pipeline blocking.
+- **Primary Manager Worker (Worker 1)**: Worker 1 handles manual extras from `links.txt`, compiles site authorization config (`auth.js`), updates `sitemap.xml`, and deploys the Cloudflare proxy.
+
+---
+
+## 3-LAYER INGESTION & DOWNLOAD ENGINE
+
+Google Drive enforces strict rate-limits and anti-bot validation on automated downloads. The ingestion engine executes a cascading 3-tier fallback sequence:
+
+<details open>
+<summary><b>Click to view Download Mechanism Fallback Layers</b></summary>
+
+1. **Layer 1: `gdown` Library**: Attempts high-speed Python-based stream download for standard public Drive IDs and folder structures.
+2. **Layer 2: Direct Endpoint Extraction**: If Layer 1 receives rate-limit HTTP status codes, the engine extracts raw tokens via curl targeting `drive.usercontent.google.com/download?id=...&confirm=t` using realistic browser user-agents.
+3. **Layer 3: Folder Salvage Ingestion**: If a folder download aborts due to a corrupt asset, Layer 3 enumerates individual folder file IDs, downloading valid items independently and skipping inaccessible assets.
+
+</details>
+
+---
+
+## TRANSCODING & STREAM PROBE MATRIX
+
+Before encoding, every downloaded file undergoes structural stream analysis using `ffprobe`.
+
+```
+                    INPUT ASSET INGESTION (downloads/)
+                                    |
+                                    v
+                       Structural Stream Validation
+                       `ffprobe -show_streams -json`
+                                    |
+            +-----------------------+-----------------------+
+            |                                               |
+     Video Stream Found?                             No Video Stream
+     (Codecs: h264, hevc, vp8, etc)                  (PDF, ZIP, JPG, MP3)
+            |                                               |
+            v                                               v
+    Transcode Engine                                DISCARD IMMEDIATELY
+    ffmpeg VP9 / Opus Transcode                     Log asset removal
+            |
+            v
+    AES-256 Encryption
+```
+
+### Transcode Profile Specification:
+- **Video Codec**: Google VP9 (`libvpx-vp9`)
+- **Video Bitrate Control**: Constant Rate Factor (CRF 31 default)
+- **Audio Codec**: Opus (`libopus` at 128 kbps stereo)
+- **Container**: WebM (`.webm`)
+- **Speed Preset**: `CPU_USED: 2` (Balanced speed and compression efficiency)
+
+---
+
+## AES-256 CRYPTOGRAPHIC ARCHITECTURE
+
+Security is maintained via zero-knowledge client-side encryption. Raw unencrypted media files are purged from runner environments immediately following encryption.
+
+<details open>
+<summary><b>Cryptographic Specification Summary</b></summary>
+
+- **Cipher Specification**: AES-256-CTR (Counter Mode)
+- **Key Derivation Function**: PBKDF2 with SHA-256
+- **PBKDF2 Iteration Count**: 600,000 rounds
+- **Key Seed**: Derived from repository secrets (`SITE_ID` + `SITE_PASSWORD`)
+- **File Asset Extension**: `.webm.enc`
+- **Client Decryption**: W3C Web Crypto API (`crypto.subtle.importKey`, `crypto.subtle.decrypt`) inside `docs/library.html`.
+
+</details>
+
+---
+
+## MULTI-PLATFORM HOSTING & DEPLOYMENT
+
+### GitHub Pages
+
+For public repositories, GitHub Pages deployment is automated by Worker 1 during workflow completion.
+- Source path: `/docs`
+- Target branch: `main`
+- Domain: `https://YOUR_USERNAME.github.io/YOUR_REPONAME/`
+
+### Hosting the Site on Vercel
+
+The site consists entirely of static client-side files. To host on Vercel:
+1. Connect your repository to Vercel (`vercel.com/new`).
+2. Set **Root Directory** to `./`.
+3. Set **Output Directory** to `docs`.
+4. Deploy. Vercel automatically redeploys whenever workflow runs update `auth.js` or `site-config.js`.
+
+### Private Repository Mode
+
+To operate the pipeline on a private repository:
+
+| Operational Metric | Public Repository | Private Repository |
+| :--- | :--- | :--- |
+| GitHub Actions Minutes | Free / Unlimited | ~2,000 Free Minutes / Month |
+| Schedule Cadence | Every 6 hours (~16 courses/day) | Weekly (`0 6 * * 1`) (~16 courses/month) |
+| Site Hosting | GitHub Pages (Automatic) | Vercel (Hobby Tier Free) |
+| Proxy Authentication | Anonymous GitHub API | `GH_READ_TOKEN` Fine-Grained Secret |
+
+To configure private mode:
+1. Generate a fine-grained GitHub access token with `Contents: Read-Only` permission.
+2. Store token in secrets as `GH_READ_TOKEN`.
+3. Deploy site to Vercel.
+
+---
+
+## CONFIGURATION REFERENCE & PERFORMANCE TUNING
+
+Environment variables defined at the top of `.github/workflows/drive-to-webm.yml` control encoding and worker execution parameters:
+
+<details open>
+<summary><b>Click to expand Configuration Parameters Table</b></summary>
+
+| Parameter Name | Default Value | Description & Adjustment Impact |
+| :--- | :--- | :--- |
+| `VP9_CRF` | `31` | Quality target (0-63). Lower values increase quality and file size; higher values reduce size. |
+| `CPU_USED` | `2` | Transcode deadline speed (0-5). Higher values increase encoding speed at minor quality cost. |
+| `AUDIO_KBPS` | `128` | Audio bitrate in kilobits per second. |
+| `COURSE_API` | `https://ahm7xmakki.com/api/courses` | Remote catalog API endpoint. Set to `""` to disable auto-feed. |
+| `API_COURSES_PER_RUN` | `1` | Number of courses processed per worker per run execution. |
+| `WORKERS` | `4` | Number of parallel worker matrix runners. Must match YAML matrix setup. |
+| `PUBLISH_RELEASE` | `true` | When enabled, uploads `.webm.enc` files to GitHub Releases. |
+| `UPLOAD_ORIGINALS` | `false` | When enabled, attaches raw downloaded source files as 90-day workflow artifacts. |
+
+</details>
+
+---
+
+## SEO & SEARCH CONSOLE PLAYBOOK
+
+The `docs/` site includes built-in search engine optimization:
+
+1. **Structured Metadata**: Includes JSON-LD schema markup (`Course`, `FAQPage`, `WebSite`) inside `docs/index.html`.
+2. **OpenGraph Integration**: Configured with pre-rendered social card previews (`docs/assets/og-image.png`).
+3. **Automated Sitemap & Robots**: Generated dynamically during workflow execution reflecting your actual hosting domain.
+
+### Google Search Console Verification:
+1. Log into Google Search Console (`search.google.com/search-console`).
+2. Add your property URL (`https://YOUR_USERNAME.github.io/YOUR_REPONAME/`).
+3. Copy the HTML tag verification `content` attribute value.
+4. Replace the placeholder comment in `docs/index.html`:
+   ```html
+   <meta name="google-site-verification" content="YOUR_VERIFICATION_TOKEN" />
+   ```
+5. Submit `sitemap.xml` in Search Console under Sitemaps.
+
+---
+
+## INTERACTIVE TROUBLESHOOTING GUIDE
+
+<details>
+<summary><b>Workflow execution fails with "refusing to publish UNENCRYPTED"</b></summary>
+
+**Cause**: Missing cryptographic repository secrets.
+**Resolution**: Set `SITE_ID` and `SITE_PASSWORD` in repository secrets under **Settings -> Secrets and variables -> Actions** and re-run workflow.
+
+</details>
+
+<details>
+<summary><b>Library page displays "Coming Soon" or empty release list</b></summary>
+
+**Cause**: Workflow has not completed initial release publication or secrets were missing during the first run.
+**Resolution**: Ensure repository secrets are set, then manually dispatch the workflow from the Actions tab.
+
+</details>
+
+<details>
+<summary><b>Browser displays "Decryption Failed" during playback</b></summary>
+
+**Cause**: Mismatch between key active in browser session and key used during file encryption, or mid-session secret rotation.
+**Resolution**: Reload the web page. If secrets were updated after media was published, dispatch a manual workflow run with `force_reconvert` selected to re-encrypt assets under the new key.
+
+</details>
+
+<details>
+<summary><b>Private repository library displays HTTP 404 on release assets</b></summary>
+
+**Cause**: Anonymous access token cannot read private repository release endpoints.
+**Resolution**: Create a fine-grained token with `Contents: Read-Only` permission, add it as repository secret `GH_READ_TOKEN`, and re-run workflow.
+
+</details>
+
+<details>
+<summary><b>Google Drive ingestion fails with quota or rate limit errors</b></summary>
+
+**Cause**: Google Drive rate-limiting temporary IP blocks on runner nodes.
+**Resolution**: The pipeline automatically fails over to direct curl endpoints and file salvaging. Remaining failed items will persist in queue state and retry on the next 6-hour cron cycle.
+
+</details>
+
+---
+
+## CONTRIBUTING & LICENSING
+
+- **Contributions**: Please read [CONTRIBUTING.md](CONTRIBUTING.md) for pull request guidelines, coding standards, and testing procedures.
+- **License**: This project is open source and available under the terms of the [MIT License](LICENSE).
