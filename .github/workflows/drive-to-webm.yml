@@ -1,0 +1,1029 @@
+name: Drive to WebM
+
+# ─────────────────────────────────────────────────────────────────────────────
+# A self-cleaning, ENCRYPTED video pipeline — the repo is only the job queue.
+#
+#   1. Add Google Drive link(s) to links.txt and push to `main`
+#   2. The workflow downloads them, discards any non-video files found in
+#      the folders (PDFs, images, documents), and converts every video
+#   3. Every WebM is AES-256 ENCRYPTED (the plaintext never leaves the
+#      runner) and published to a GitHub Release (up to 2 GB per file).
+#      The direct release URLs only ever serve scrambled bytes — useless
+#      without the ID + password you set in the secrets.
+#   4. A public, SEO-ready two-page site (landing page + free library,
+#      docs/*.html) is published at OWNER.github.io/REPO/, and the
+#      FREE library (docs/library.html) opens with no login — it unlocks and
+#      decrypts videos in the visitor's browser by itself. An optional free
+#      Cloudflare Worker lets the page stream the bytes (otherwise each video
+#      is downloaded and opened on its card — "manual mode").
+#      Sitemap + robots.txt are generated automatically.
+#   5. links.txt is emptied automatically, ready for the next batch
+#
+#   Runs on links.txt pushes, manual triggers, and a 6-hourly schedule —
+#   with FOUR workers in parallel (a job matrix), each processing its own
+#   slice of the catalog. See WORKERS / matrix.worker in the job below.
+#   Within a run, the API course(s) are processed first, then any manual
+#   links.txt extras (worker 1 handles those).
+#
+# The repo never accumulates video data — encrypted or otherwise.
+# Set COMMIT_TO_REPO: "true" below if you ever want the (encrypted) files
+# committed into the repo instead, or ENCRYPT: "false" to go back to plain
+# unprotected files (not recommended).
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  push:
+    branches: [main]
+    paths: [links.txt]
+  workflow_dispatch:
+    inputs:
+      force_reconvert:
+        description: "Re-encode videos even if the .webm already exists"
+        type: boolean
+        default: false
+  schedule:
+    # auto-feed: pull the next course(s) from COURSE_API every 6 hours
+    # (a run is capped at 350 min, so runs never overlap).
+    # PRIVATE repo? Minutes are metered there — switch this to a weekly
+    # cron ("0 6 * * 1") to stay inside the free ~2,000 min/month.
+    - cron: "0 */6 * * *"
+
+permissions:
+  contents: write
+  pages: write    # to auto-enable the GitHub Pages video gallery
+
+# Never let two runs of the same branch stomp on each other
+concurrency:
+  group: drive-to-webm-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOWNLOAD_DIR: downloads      # scratch dir for Drive files (not committed)
+  WEBM_DIR: webm               # scratch dir for converted files (not committed)
+  VP9_CRF: "31"                # 0–63, lower = better quality & bigger files
+  CPU_USED: "2"                # 0–5,   lower = slower but better quality
+  AUDIO_KBPS: "128"            # Opus audio bitrate
+  MAX_COMMIT_MB: "90"          # only used when COMMIT_TO_REPO is true
+  PUBLISH_RELEASE: "true"      # upload encrypted videos to a GitHub Release
+  COMMIT_TO_REPO: "false"      # also commit files into the repo (repo grows!)
+  UPLOAD_ORIGINALS: "false"    # also attach the original downloads as artifacts
+  ENCRYPT: "true"              # publish AES-256-encrypted files (keep true!)
+  KDF_ITER: "600000"           # PBKDF2 iterations — must match docs/library.html
+  COURSE_API: "https://ahm7xmakki.com/api/courses"  # auto-feed: pull the next unprocessed course from this catalog API each run ("" = off)
+  API_COURSES_PER_RUN: "1"     # courses per worker per run — one course can be ~6 GB
+  WORKERS: "4"                 # parallel workers — must match the matrix list above
+
+jobs:
+  drive-to-webm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false          # one worker failing must not cancel the others
+      matrix:
+        worker: [1, 2, 3, 4]    # parallel lanes — keep in sync with WORKERS below
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Enable GitHub Pages video gallery (one-time)
+        if: matrix.worker == 1
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          # GitHub Pages is free for PUBLIC repos only — on a private repo it
+          # needs a paid plan, so stand down and point at the Vercel path.
+          if gh api "repos/${{ github.repository }}" --jq .private 2>/dev/null | grep -qx true; then
+            echo "Private repo — skipping GitHub Pages (it needs a paid plan there)."
+            echo "Host the site on Vercel instead (free, deploys private repos): README → 'Private repo mode'."
+            exit 0
+          fi
+          if gh api "repos/${{ github.repository }}/pages" --method GET >/dev/null 2>&1; then
+            echo "GitHub Pages already enabled."
+          elif gh api "repos/${{ github.repository }}/pages" --method POST \
+              -f "source[branch]=${{ github.ref_name }}" -f "source[path]=/docs" >/dev/null 2>&1; then
+            site="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
+            echo "GitHub Pages enabled — the video gallery is live at $(tr '[:upper:]' '[:lower:]' <<<"$site")"
+          else
+            echo "::notice::Could not auto-enable GitHub Pages — enable it manually: Settings → Pages → branch '${{ github.ref_name }}', folder '/docs'"
+          fi
+
+      # ── Optional: media proxy on Cloudflare Workers ────────────────────────
+      # GitHub's file servers don't send CORS headers, so the site's page
+      # can't download the encrypted videos in the browser by itself. A tiny
+      # free Cloudflare Worker in front of the release files fixes that
+      # (in-browser streaming). Without it the site still works — each video
+      # is downloaded and then opened on its card ("manual mode").
+      # Enable by adding the CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID
+      # secrets (see README). Free plan, no card required.
+      - name: Deploy media proxy (Cloudflare Worker)
+        if: matrix.worker == 1
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          GH_READ_TOKEN: ${{ secrets.GH_READ_TOKEN }}  # optional read-only PAT — set it if the repo is private
+          WRANGLER_SEND_METRICS: "false"
+        run: |
+          set -uo pipefail
+          mkdir -p docs cloudflare
+          write_proxy_js() {   # $1 = worker URL, or "null" for manual mode
+            if [[ "$1" == "null" ]]; then
+              printf 'window.MEDIA_PROXY = null; // no media proxy — manual decrypt mode\n' > docs/proxy.js
+            else
+              printf 'window.MEDIA_PROXY = "%s";\n' "$1" > docs/proxy.js
+            fi
+          }
+          if [[ -z "${CLOUDFLARE_API_TOKEN:-}" || -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]]; then
+            echo "::notice::Cloudflare secrets not set — the site will use manual decrypt mode (download each encrypted video, open it on its card). Add CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID to enable in-browser streaming."
+            write_proxy_js null
+            exit 0
+          fi
+          repo_slug="$(echo "${{ github.event.repository.name }}" | tr '[:upper:]' '[:lower:]' \
+            | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//' | cut -c1-32)"
+          worker_name="media-proxy-${repo_slug:-repo}"
+          {
+            echo "name = \"${worker_name}\""
+            echo "main = \"media-proxy.js\""
+            echo "compatibility_date = \"2024-09-01\""
+            echo "account_id = \"${CLOUDFLARE_ACCOUNT_ID}\""
+            echo "workers_dev = true"
+            echo ""
+            echo "[vars]"
+            echo "ALLOW_BASE = \"https://github.com/${{ github.repository }}/releases/download/\""
+            echo "GH_REPO = \"${{ github.repository }}\""
+          } > cloudflare/wrangler.toml
+          subdomain="$(curl -sf --max-time 30 \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+              "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/subdomain" \
+              | jq -r '.result.subdomain // empty' || true)"
+          if [[ -z "${subdomain:-}" ]]; then
+            echo "::warning::Could not look up your Cloudflare subdomain — check the CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID secrets. Falling back to manual decrypt mode."
+            write_proxy_js null
+            exit 0
+          fi
+          if npx --yes wrangler@4 deploy --config cloudflare/wrangler.toml; then
+            write_proxy_js "https://${worker_name}.${subdomain}.workers.dev"
+            echo "Media proxy live: https://${worker_name}.${subdomain}.workers.dev"
+            # Private-repo mode: give the proxy a read-only GitHub token so it
+            # can read this repo's releases (anonymous reads 404 on private).
+            if [[ -n "${GH_READ_TOKEN:-}" ]]; then
+              if printf '%s' "$GH_READ_TOKEN" | npx --yes wrangler@4 secret put GH_TOKEN --config cloudflare/wrangler.toml >/dev/null; then
+                echo "Proxy: private-repo mode enabled (release reads authenticated)."
+              else
+                echo "::warning::Could not store GH_TOKEN in the proxy — on a PRIVATE repo the library would stay empty. Check the GH_READ_TOKEN secret and re-run this workflow."
+              fi
+            fi
+          else
+            echo "::warning::Cloudflare deploy failed — the site will use manual decrypt mode."
+            write_proxy_js null
+          fi
+
+      # ── Site files: access gate hash, per-host config, sitemap, robots ──────
+      # Set the repository secrets SITE_ID and SITE_PASSWORD
+      # (Settings → Secrets and variables → Actions). Only a salted SHA-256
+      # hash ever reaches the repo — never the plaintext.
+      - name: Generate site files (docs/auth.js, sitemap, robots)
+        if: matrix.worker == 1
+        env:
+          SITE_ID: ${{ secrets.SITE_ID }}
+          SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          mkdir -p docs
+          if [[ -z "${SITE_ID:-}" || -z "${SITE_PASSWORD:-}" ]]; then
+            echo "::warning::Secrets SITE_ID / SITE_PASSWORD are not set — the site will show a 'coming soon' notice, and with ENCRYPT enabled the run stops before publishing anything. Add them under Settings → Secrets and variables → Actions, then re-run this workflow (Actions → Drive to WebM → Run workflow)."
+            printf 'window.SITE_AUTH = { configured: false };\n' > docs/auth.js
+          else
+            # The site is FREE — there is no login screen. The key below is
+            # embedded in the public site on purpose: it lets the page unlock
+            # the videos in the visitor's browser while the raw release links
+            # stay useless on their own. (Quotes/backslashes are escaped so
+            # the value survives as a JS string literal. Avoid newlines.)
+            esc() { printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'; }
+            printf 'window.SITE_AUTH = { configured: true, key: "%s:%s" };\n' \
+              "$(esc "$SITE_ID")" "$(esc "$SITE_PASSWORD")" > docs/auth.js
+            echo "Site unlock file generated (powers the free in-browser player)."
+          fi
+          # Which repo the page should read releases from — lets the site run
+          # on ANY static host (GitHub Pages, Vercel, Netlify, …), not just
+          # OWNER.github.io where it could be auto-detected from the URL.
+          printf 'window.SITE_REPO = { owner: "%s", repo: "%s" };\n' \
+            "${{ github.repository_owner }}" "${{ github.event.repository.name }}" > docs/site-config.js
+
+          # ── SEO: absolute URLs, sitemap.xml, robots.txt ────────────────────
+          # The public pages ship with __SITE_URL__ placeholders; they're
+          # replaced with the real GitHub Pages URL on the first run (later
+          # runs find nothing to replace — idempotent). Sitemap and robots
+          # are regenerated every run, so they survive repo renames.
+          site_host="$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]').github.io/${{ github.event.repository.name }}"
+          site_url="https://${site_host}"
+          while IFS= read -r f; do
+            if grep -q '__SITE_URL__' "$f"; then
+              sed -i "s|__SITE_URL__|${site_host}|g" "$f"
+              echo "Filled absolute URLs in $f"
+            fi
+          done < <(find docs -maxdepth 1 -name '*.html' 2>/dev/null)
+          {
+            echo '<?xml version="1.0" encoding="UTF-8"?>'
+            echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+            for p in index.html; do
+              if [[ -f "docs/$p" ]]; then
+                if [[ "$p" == "index.html" ]]; then
+                  echo "  <url><loc>${site_url}/</loc></url>"
+                else
+                  echo "  <url><loc>${site_url}/${p}</loc></url>"
+                fi
+              fi
+            done
+            echo '</urlset>'
+          } > docs/sitemap.xml
+          {
+            echo 'User-agent: *'
+            echo 'Allow: /'
+            echo "Sitemap: ${site_url}/sitemap.xml"
+          } > docs/robots.txt
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # docs/proxy.js is written by the media-proxy step just before this
+          git add docs/auth.js docs/site-config.js docs/sitemap.xml docs/robots.txt 2>/dev/null || true
+          git add docs/proxy.js 2>/dev/null || true
+          git add docs/*.html 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "Site files unchanged."
+          else
+            git commit -m "drive-to-webm: update site files (access, SEO) (run #${{ github.run_number }}) [skip ci]"
+            if ! git push origin "HEAD:${{ github.ref_name }}"; then
+              git fetch origin "${{ github.ref_name }}" && git rebase "origin/${{ github.ref_name }}" \
+                && git push origin "HEAD:${{ github.ref_name }}"
+            fi
+          fi
+
+      - name: Pick work — catalog API first, then links.txt extras
+        id: links
+        run: |
+          set -euo pipefail
+          : > links.active
+          manual_n=0
+
+          # ── auto-feed (runs FIRST): pick course(s) from COURSE_API ────────
+          # api-progress.json (committed by the bot) remembers what is done,
+          # what failed, and how many times each course was attempted — a
+          # course is retried once, then skipped, so the queue never stalls.
+          api_n=0
+          if [[ -n "${COURSE_API:-}" ]]; then
+            echo "Fetching the course catalog from ${COURSE_API}…"
+            if curl -fsSL --retry 3 --max-time 60 "$COURSE_API" -o api-catalog.json; then
+              WORKER="${{ matrix.worker }}" API_COURSES_PER_RUN="${API_COURSES_PER_RUN:-1}" python3 - <<'PY'
+          import json, os
+          per_run = max(1, int(os.environ.get("API_COURSES_PER_RUN", "1")))
+          worker = int(os.environ.get("WORKER", "1"))
+          workers = max(1, int(os.environ.get("WORKERS", "1")))
+          pfile = "api-progress-w%d.json" % worker
+          progress = json.load(open(pfile)) if os.path.exists(pfile) else {"courses": []}
+          by_id = {int(c.get("id", 0)): c for c in progress.get("courses", [])}
+          catalog = json.load(open("api-catalog.json")).get("courses", [])
+          picked = []
+          for c in catalog:
+              cid = int(c.get("id") or 0)
+              url = c.get("url") or ""
+              if not cid or "drive.google.com" not in url:
+                  continue
+              if (cid - 1) % workers != worker - 1:
+                  continue          # another worker's course
+              rec = by_id.get(cid)
+              if rec and (rec.get("status") == "done" or int(rec.get("attempts", 0)) >= 2):
+                  continue          # published, or already tried twice — skip
+              picked.append({"id": cid, "name": c.get("name", ""), "url": url})
+              if len(picked) >= per_run:
+                  break
+          # remember the attempt now (committed below) so a timed-out course is
+          # never retried forever
+          for p in picked:
+              rec = by_id.get(p["id"], {"id": p["id"], "name": p["name"], "url": p["url"], "attempts": 0})
+              rec["attempts"] = int(rec.get("attempts", 0)) + 1
+              by_id[p["id"]] = rec
+          progress["courses"] = sorted(by_id.values(), key=lambda c: c["id"])
+          json.dump(progress, open(pfile, "w"), ensure_ascii=False, indent=1)
+          json.dump(picked, open("api-selected.json", "w"), ensure_ascii=False)
+          with open("links.api", "w") as f:
+              for p in picked:
+                  f.write(p["url"] + "\n")
+          names = ", ".join(p["name"][:40] for p in picked) or "nothing new"
+          print(f"API feed: picked {len(picked)} course(s) — {names}")
+          PY
+              if [[ -s links.api ]]; then
+                cat links.api >> links.active
+                api_n=$(grep -c . links.api || true)
+                # commit the attempt marker right away (survives timeouts)
+                git config user.name "github-actions[bot]"
+                git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+                git add "api-progress-w${{ matrix.worker }}.json"
+                if ! git diff --cached --quiet; then
+                  git commit -m "drive-to-webm: api queue — start course(s) (run #${{ github.run_number }} w${{ matrix.worker }}) [skip ci]"
+                  if ! git push origin "HEAD:${{ github.ref_name }}"; then
+                    git fetch origin "${{ github.ref_name }}" && git rebase "origin/${{ github.ref_name }}" \
+                      && git push origin "HEAD:${{ github.ref_name }}"
+                  fi
+                fi
+              fi
+            else
+              echo "::warning::Couldn't fetch the course catalog API — continuing with links.txt only."
+            fi
+          fi
+
+          # ── manual extras from links.txt — worker 1 only ──────────────────
+          # Queued AFTER the API courses so the scheduled catalog course
+          # always gets its turn first; manual links fill the rest of the
+          # run. Workers 2+ never read links.txt (they'd process the same
+          # link twice).
+          if [[ "${{ matrix.worker }}" == "1" && -f links.txt ]]; then
+            # Strip CRLF, whitespace and comment lines
+            sed -e 's/\r$//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' links.txt \
+              | grep -vE '^(#|$)' > links.manual || true
+            manual_n=$(grep -c . links.manual || true)
+            cat links.manual >> links.active
+          fi
+
+          n=$(grep -c . links.active || true)
+          echo "Found **$n link(s)** to process (manual: $manual_n, API feed: $api_n)." >> "$GITHUB_STEP_SUMMARY"
+          echo "Found $n link(s) — manual: $manual_n, API feed: $api_n."
+          if [[ "$n" -eq 0 ]]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # ── Download from Google Drive ──────────────────────────────────────────
+      - name: Set up Python
+        if: steps.links.outputs.skip != 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install gdown
+        if: steps.links.outputs.skip != 'true'
+        run: pip install gdown
+
+      - name: Ensure ffmpeg is available
+        if: steps.links.outputs.skip != 'true'
+        run: |
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          fi
+          ffmpeg -version | head -1
+
+      - name: Download files from Google Drive
+        if: steps.links.outputs.skip != 'true'
+        run: |
+          set -uo pipefail
+          mkdir -p "$DOWNLOAD_DIR" "$RUNNER_TEMP/staging"
+          : > "$RUNNER_TEMP/staging/failures.txt"
+
+          USER_AGENT="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+
+          extract_id() {   # echoes the file id from any Drive URL form (or a bare id)
+            local u="$1" re
+            re='[?&]id=([^&]+)';        [[ "$u" =~ $re ]]      && { echo "${BASH_REMATCH[1]}"; return 0; }
+            re='/file/d/([^/?&]+)';     [[ "$u" =~ $re ]]      && { echo "${BASH_REMATCH[1]}"; return 0; }
+            re='/folders/([^/?&]+)';    [[ "$u" =~ $re ]]      && { echo "${BASH_REMATCH[1]}"; return 0; }
+            re='^[A-Za-z0-9_-]{20,}$';  [[ "$u" =~ $re ]]      && { echo "$u"; return 0; }
+            echo ""
+          }
+
+          # Last-resort direct download that bypasses gdown entirely.
+          curl_download() {   # $1=file id  $2=dest file path → 0 on success
+            local id="$1" out="$2" tmp="$2.part" hdr="$2.hdr"
+            curl -sL --fail --retry 3 --retry-delay 10 -A "$USER_AGENT" \
+              "https://drive.usercontent.google.com/download?id=$id&export=download&confirm=t" \
+              -o "$tmp" -D "$hdr" || { rm -f "$tmp" "$hdr"; return 1; }
+            # some errors come back as HTTP 200 HTML pages
+            if [[ ! -s "$tmp" ]] || head -c 512 "$tmp" | grep -qiE '^[[:space:]]*(<!doctype|<html)'; then
+              rm -f "$tmp" "$hdr"; return 1
+            fi
+            mv -- "$tmp" "$out" && rm -f "$hdr"
+          }
+
+          fetch_file() {   # $1=url  $2=dest dir → 0 on success (single-file links)
+            local url="$1" dest="$2" id tmp hdr name
+            if gdown "$url" -O "$dest/" >/dev/null 2>&1; then return 0; fi
+            echo "  gdown failed — trying direct download…"
+            id="$(extract_id "$url")"
+            [[ -z "$id" ]] && return 1
+            tmp="$(mktemp)"; hdr="$(mktemp)"
+            if ! curl -sL --fail --retry 3 --retry-delay 10 -A "$USER_AGENT" \
+                "https://drive.usercontent.google.com/download?id=$id&export=download&confirm=t" \
+                -o "$tmp" -D "$hdr"; then
+              rm -f "$tmp" "$hdr"; return 1
+            fi
+            if [[ ! -s "$tmp" ]] || head -c 512 "$tmp" | grep -qiE '^[[:space:]]*(<!doctype|<html)'; then
+              rm -f "$tmp" "$hdr"; return 1
+            fi
+            name="$(grep -im1 '^content-disposition' "$hdr" \
+              | sed -E 's/.*filename="([^"]+)".*/\1/' | tr -d '\r')"
+            [[ -z "$name" || "$name" == content-disposition* ]] && name="drive_$id"
+            mv -- "$tmp" "$dest/$name"
+            rm -f "$hdr"
+            echo "  direct download ok: $name"
+          }
+
+          fetch_file_to() {   # $1=url  $2=dest file path → 0 on success (folder entries)
+            local url="$1" out="$2" id
+            if gdown "$url" -O "$out" >/dev/null 2>&1; then return 0; fi
+            id="$(extract_id "$url")"
+            [[ -z "$id" ]] && return 1
+            curl_download "$id" "$out"
+          }
+
+          i=0
+          while IFS= read -r url || [[ -n "$url" ]]; do
+            i=$((i+1))
+            echo "::group::Link $i: $url"
+            target="$RUNNER_TEMP/staging/link_$i"
+            mkdir -p "$target"
+            note=""
+
+            if [[ "$url" != *"/folders/"* ]]; then
+              # ── single file: gdown → direct download, with retries ──
+              ok=0
+              for attempt in 1 2 3; do
+                if fetch_file "$url" "$target"; then ok=1; break; fi
+                echo "Attempt $attempt failed — retrying in 20s…"
+                sleep 20
+              done
+            else
+              # ── folder: one bulk try, then salvage files one by one ──
+              ok=0
+              if gdown --folder "$url" -O "$target/" > "$RUNNER_TEMP/staging/gdown_$i.log" 2>&1; then
+                ok=1
+              else
+                echo "Bulk folder download incomplete — switching to per-file download…"
+                tail -3 "$RUNNER_TEMP/staging/gdown_$i.log" 2>/dev/null || true
+                root="$(find "$target" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | head -1 || true)"
+                if [[ -z "$root" ]]; then
+                  fid="$(extract_id "$url")"
+                  root="$target/folder_${fid:-$i}"
+                fi
+                listing="$RUNNER_TEMP/staging/listing_$i.json"
+                if gdown --json --folder "$url" > "$listing" 2>/dev/null; then
+                  fb_ok=0; fb_fail=0
+                  while IFS=$'\t' read -r rel furl; do
+                    [[ -z "$rel" ]] && continue
+                    [[ "$furl" == *"/folders/"* ]] && continue
+                    dest="$root/$rel"
+                    if [[ -f "$dest" ]]; then fb_ok=$((fb_ok+1)); continue; fi
+                    mkdir -p "$(dirname "$dest")"
+                    if fetch_file_to "$furl" "$dest"; then
+                      fb_ok=$((fb_ok+1))
+                    else
+                      fb_fail=$((fb_fail+1))
+                      echo "::warning::Per-file download failed: $rel"
+                    fi
+                  done < <(python3 -c 'import json,sys;[print(e["path"]+"\t"+e["url"]) for e in json.load(open(sys.argv[1]))]' "$listing" | grep -v "/folders/")
+                  echo "Per-file fallback: $fb_ok file(s) saved, $fb_fail failed."
+                  if (( fb_ok > 0 && fb_fail == 0 )); then
+                    ok=1
+                  elif (( fb_ok > 0 )); then
+                    note=" ($fb_fail file(s) failed)"
+                  fi
+                fi
+              fi
+            fi
+
+            if [[ $ok -ne 1 ]]; then
+              echo "$url$note" >> "$RUNNER_TEMP/staging/failures.txt"
+              echo "::warning::Could not fully download $url$note (keeping any partial files)"
+            fi
+            echo "::endgroup::"
+          done < links.active
+
+          # Move everything into $DOWNLOAD_DIR/ with collision-safe names.
+          move_one() {
+            local src="$1" base stem ext dest k
+            base="$(basename "$src")"
+            [[ -z "$base" || "$base" == "." || "$base" == ".." ]] && return 0
+            dest="$DOWNLOAD_DIR/$base"
+            if [[ -e "$dest" ]]; then
+              stem="${base%.*}"; ext="${base##*.}"
+              [[ "$stem" == "$base" ]] && ext=""
+              k=2
+              while [[ -e "$DOWNLOAD_DIR/${stem}-${k}${ext:+.$ext}" ]]; do k=$((k+1)); done
+              dest="$DOWNLOAD_DIR/${stem}-${k}${ext:+.$ext}"
+            fi
+            mv -- "$src" "$dest"
+            echo "Saved: $dest"
+          }
+
+          i=0
+          while IFS= read -r url || [[ -n "$url" ]]; do
+            i=$((i+1))
+            target="$RUNNER_TEMP/staging/link_$i"
+            [[ -d "$target" ]] || continue
+            if [[ "$url" == *"/folders/"* ]]; then
+              # Folder link → keep the downloaded folder structure
+              while IFS= read -r -d '' item; do move_one "$item"; done \
+                < <(find "$target" -mindepth 1 -maxdepth 1 -print0)
+            else
+              # File link → flatten into $DOWNLOAD_DIR/
+              while IFS= read -r -d '' item; do move_one "$item"; done \
+                < <(find "$target" -type f -print0)
+            fi
+          done < links.active
+
+          n=$(find "$DOWNLOAD_DIR" -type f | wc -l)
+          echo "Total files in $DOWNLOAD_DIR/: $n"
+
+      # ── Convert videos to WebM ──────────────────────────────────────────────
+      # Each finished video is published to the release immediately, so a
+      # timeout or crash never loses work already done.
+      - name: Convert videos to WebM (VP9 + Opus)
+        if: steps.links.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SITE_ID: ${{ secrets.SITE_ID }}
+          SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
+        run: |
+          set -uo pipefail
+          mkdir -p "$WEBM_DIR" "$DOWNLOAD_DIR"
+
+          # ── Discard non-video files (PDFs, images, documents) ──────────
+          # Course folders usually carry PDFs, images and docs next to the
+          # videos. Only videos enter the pipeline — everything else is
+          # deleted here, before any conversion, so it never reaches the
+          # release, the artifacts or the repo. The test is content-based:
+          # a file counts as a video iff ffprobe finds a video stream whose
+          # codec is not a still-image codec (JPEG/PNG/WebP/GIF… decode as
+          # single-frame "video", so they need the explicit codec check).
+          # Misnamed videos still survive; a renamed image still gets caught.
+          mkdir -p "$RUNNER_TEMP/staging"
+          discard_list="$RUNNER_TEMP/staging/discarded.txt"
+          : > "$discard_list"
+          is_video() {   # $1=file → 0 iff the content is real video
+            local codec
+            codec="$(ffprobe -v error -select_streams v:0 \
+                       -show_entries stream=codec_name -of csv=p=0 "$1" 2>/dev/null)"
+            [[ -z "$codec" ]] && return 1
+            case ",mjpeg,mjpegb,png,webp,bmp,gif,tiff,jpeg2000,j2k,jpx,jpegls,jpegxl,dds," in
+              *",$codec,"*) return 1 ;;
+            esac
+            return 0
+          }
+          while IFS= read -r -d '' f; do
+            if ! is_video "$f"; then
+              echo "$f" >> "$discard_list"
+              rm -- "$f"
+            fi
+          done < <(find "$DOWNLOAD_DIR" -type f -print0 2>/dev/null)
+          n_discarded=$(wc -l < "$discard_list")
+          if (( n_discarded > 0 )); then
+            summary="$(sed "s|^$DOWNLOAD_DIR/||" "$discard_list" \
+              | awk -F/ '{print $NF}' \
+              | awk -F. 'NF>1 {print toupper($NF)} NF==1 {print "(no ext)"}' \
+              | sort | uniq -c | sort -rn \
+              | awk '{printf "%s %s, ", $1, $2}' | sed 's/, $//')"
+            echo "::group::Discarded $n_discarded non-video file(s) — $summary"
+            sed "s|^$DOWNLOAD_DIR/||" "$discard_list" | head -50
+            (( n_discarded > 50 )) && echo "… and $((n_discarded-50)) more"
+            echo "::endgroup::"
+          fi
+
+          force="false"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" \
+                && "${{ github.event.inputs.force_reconvert }}" == "true" ]]; then
+            force="true"
+          fi
+
+          # ── Encryption gate ──────────────────────────────────────────────────
+          # Published files are AES-256 encrypted with a key derived from the
+          # site credentials (PBKDF2-SHA256, KDF_ITER rounds). The plaintext
+          # WebM never leaves this runner. docs/library.html decrypts in the
+          # browser after login.
+          SUF=""
+          if [[ "$ENCRYPT" == "true" ]]; then
+            if [[ -z "${SITE_ID:-}" || -z "${SITE_PASSWORD:-}" ]]; then
+              echo "::error::ENCRYPT is enabled but the SITE_ID / SITE_PASSWORD secrets are missing — refusing to publish UNENCRYPTED videos. Add both secrets (Settings → Secrets and variables → Actions) and re-run this workflow."
+              exit 1
+            fi
+            SUF=".enc"
+            ENC_PASS="${SITE_ID}:${SITE_PASSWORD}"
+            export ENC_PASS
+            echo "Encryption enabled — videos will be published AES-256 encrypted (openssl enc -aes-256-ctr, PBKDF2 ${KDF_ITER} iterations)."
+          else
+            echo "::warning::ENCRYPT is disabled — published files will be UNPROTECTED (anyone with the link can watch)."
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          BRANCH="${{ github.ref_name }}"
+          RELEASE_TAG="webm-${{ github.run_number }}-w${{ matrix.worker }}"
+          # Title the release with the course's real name (known when the run
+          # was fed by the catalog API) — that name becomes the course title
+          # shown on the library's cards. Manual-link-only runs fall back to
+          # the batch label.
+          COURSE_TITLE=""
+          if [[ -f api-selected.json ]]; then
+            COURSE_TITLE="$(python3 -c 'import json; d=json.load(open("api-selected.json")); print((d[0].get("name") or "").strip() if d else "")' 2>/dev/null || true)"
+          fi
+          if [[ -n "$COURSE_TITLE" ]]; then
+            RELEASE_TITLE="$COURSE_TITLE"
+          else
+            RELEASE_TITLE="WebM batch — run #${{ github.run_number }} (worker ${{ matrix.worker }})"
+          fi
+
+          # Videos already published to this release (re-runs resume here)
+          declare -A published=()
+          if [[ "$PUBLISH_RELEASE" == "true" ]]; then
+            while IFS= read -r name; do
+              [[ -n "$name" ]] && published["$name"]=1
+            done < <(gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name' 2>/dev/null || true)
+            if (( ${#published[@]} > 0 )); then
+              echo "Release $RELEASE_TAG already has ${#published[@]} file(s) — resuming."
+            fi
+          fi
+
+          ensure_release() {
+            gh release view "$RELEASE_TAG" >/dev/null 2>&1 && return 0
+            gh release create "$RELEASE_TAG" --title "$RELEASE_TITLE" \
+              --notes "Converted from Google Drive — uploading…" || return 1
+          }
+
+          # Unique release asset name: folder structure flattened into the
+          # filename, so same-named videos in different folders never clash
+          # and re-runs can detect what's already published.
+          asset_label() {   # $1=webm file path → release asset name
+            local rel="${1#"$WEBM_DIR"/}"
+            if [[ "$rel" == */* ]]; then
+              echo "$(dirname "$rel" | tr '/' '_')__$(basename "$rel")"
+            else
+              echo "$rel"
+            fi
+          }
+
+          upload_asset() {   # $1=file  $2=asset name
+            local f="$1" label="$2" uniq
+            ensure_release || { echo "::warning::Could not create release"; return 1; }
+            if [[ "$label" == "$(basename "$f")" ]]; then
+              gh release upload "$RELEASE_TAG" "$f" --clobber || return 1
+            else
+              uniq="$RUNNER_TEMP/staging/$label"
+              cp -- "$f" "$uniq" && gh release upload "$RELEASE_TAG" "$uniq" --clobber || return 1
+            fi
+            published["$label"]=1
+            echo "Published to release: $label"
+          }
+
+          # Commit & push after every finished video (commit-to-repo mode only)
+          push_now() {
+            git add -A -- "$WEBM_DIR" 2>/dev/null || true
+            git diff --cached --quiet && return 0
+            git commit -qm "drive-to-webm: convert video to WebM (run #${{ github.run_number }}) [skip ci]" || return 0
+            if ! git push origin "HEAD:$BRANCH"; then
+              git fetch origin "$BRANCH" && git rebase "origin/$BRANCH" && git push origin "HEAD:$BRANCH"
+            fi
+          }
+
+          converted=0; copied=0; skipped=0; failed=0; encrypted=0
+          while IFS= read -r -d '' f; do
+            # Only convert files that actually contain a video stream
+            if [[ -z "$(ffprobe -v error -select_streams v:0 \
+                        -show_entries stream=codec_type -of csv=p=0 "$f" 2>/dev/null)" ]]; then
+              continue
+            fi
+            rel="${f#"$DOWNLOAD_DIR"/}"
+            out="$WEBM_DIR/${rel%.*}.webm"
+            label="$(asset_label "$out")"
+
+            if [[ "$force" != "true" ]] && { [[ -f "$out$SUF" ]] || [[ -n "${published[${label}${SUF}]:-}" ]]; }; then
+              skipped=$((skipped+1))
+              echo "Skipping (already converted): ${label}${SUF}"
+              continue
+            fi
+            mkdir -p "$(dirname "$out")"
+            echo "::group::Converting: $rel"
+            if [[ "${f##*.}" == "webm" ]]; then
+              # Already WebM — just copy it over, no re-encode
+              if cp -- "$f" "$out"; then
+                copied=$((copied+1))
+              else
+                failed=$((failed+1)); rm -f "$out"
+                echo "::warning::Copy failed: $rel"
+                echo "::endgroup::"; continue
+              fi
+            elif ffmpeg -nostdin -y -hide_banner -loglevel error -stats -i "$f" \
+                -c:v libvpx-vp9 -crf "$VP9_CRF" -b:v 0 -row-mt 1 \
+                -deadline good -cpu-used "$CPU_USED" -pix_fmt yuv420p \
+                -c:a libopus -b:a "${AUDIO_KBPS}k" \
+                "$out"; then
+              converted=$((converted+1))
+              echo "→ $out ($(du -h "$out" | cut -f1))"
+            else
+              failed=$((failed+1))
+              rm -f "$out"
+              echo "::warning::Conversion failed: $rel"
+              echo "::endgroup::"; continue
+            fi
+            echo "::endgroup::"
+
+            # ── Encrypt, then destroy the plaintext ──────────────────────────
+            if [[ -n "$SUF" ]]; then
+              enc_out="${out}.enc"
+              if openssl enc -aes-256-ctr -pbkdf2 -iter "$KDF_ITER" -salt \
+                   -in "$out" -out "$enc_out" -pass env:ENC_PASS; then
+                rm -f "$out"                      # plaintext never leaves the runner
+                out="$enc_out"                    # from here on: only the .enc exists
+                encrypted=$((encrypted+1))
+              else
+                failed=$((failed+1)); rm -f "$out" "$enc_out"
+                echo "::warning::Encryption failed: $rel"
+                continue
+              fi
+            fi
+
+            if [[ "$PUBLISH_RELEASE" == "true" ]]; then
+              upload_asset "$out" "${label}${SUF}" \
+                || echo "::warning::Release upload failed: ${label}${SUF}"
+            fi
+            if [[ "$COMMIT_TO_REPO" == "true" ]]; then
+              if [[ -n "$(find "$out" -size "+${MAX_COMMIT_MB}M" 2>/dev/null)" ]]; then
+                echo "::warning::WebM too large to commit (> ${MAX_COMMIT_MB} MB): $out — release/artifact only"
+              else
+                push_now
+              fi
+            fi
+          done < <(find "$DOWNLOAD_DIR" -type f -print0)
+
+          {
+            echo ""
+            echo "- Videos converted: **$converted**"
+            echo "- Already WebM (copied as-is): **$copied**"
+            if [[ -n "$SUF" ]]; then
+              echo "- Published AES-256 encrypted: **$encrypted** (extension \`.webm.enc\`)"
+            fi
+            echo "- Skipped (already converted): **$skipped**"
+            echo "- Failed: **$failed**"
+            echo "- Non-video files discarded: **$n_discarded**"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # ── Report ──────────────────────────────────────────────────────────────
+      - name: Write job summary
+        if: always() && steps.links.outputs.skip != 'true'
+        run: |
+          set -uo pipefail
+          {
+            echo "# Drive → WebM"
+            echo ""
+            if [[ -d "$DOWNLOAD_DIR" ]] && [[ -n "$(find "$DOWNLOAD_DIR" -type f -print -quit)" ]]; then
+              echo "## 📥 Downloaded originals (not kept in the repo)"
+              echo ""
+              echo "| File | Size |"
+              echo "|------|------|"
+              while IFS= read -r -d '' f; do
+                printf '| `%s` | %s |\n' "${f#"$DOWNLOAD_DIR"/}" "$(du -h --apparent-size "$f" | cut -f1)"
+              done < <(find "$DOWNLOAD_DIR" -type f -print0 | sort -z)
+              echo ""
+            fi
+            if [[ -d "$WEBM_DIR" ]] && [[ -n "$(find "$WEBM_DIR" -type f -print -quit)" ]]; then
+              echo "## 🎬 Published videos (encrypted)"
+              echo ""
+              echo "| File | Size | vs. original |"
+              echo "|------|------|--------------|"
+              while IFS= read -r -d '' w; do
+                rel="${w#"$WEBM_DIR"/}"
+                stem="$rel"; stem="${stem%.webm.enc}"; stem="${stem%.webm}"
+                orig=""
+                for cand in "$DOWNLOAD_DIR/$stem".*; do
+                  [[ -f "$cand" ]] && orig="$cand" && break
+                done
+                size="$(du -h --apparent-size "$w" | cut -f1)"
+                if [[ -n "$orig" ]]; then
+                  osz=$(stat -c%s "$orig"); wsz=$(stat -c%s "$w")
+                  if (( osz > 0 )); then
+                    printf '| `%s` | %s | %d%% |\n' "$rel" "$size" $(( 100 * wsz / osz ))
+                  else
+                    printf '| `%s` | %s | — |\n' "$rel" "$size"
+                  fi
+                else
+                  printf '| `%s` | %s | — |\n' "$rel" "$size"
+                fi
+              done < <(find "$WEBM_DIR" -type f -print0 | sort -z)
+              echo ""
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # ── Finalize the release (title + full notes) ───────────────────────────
+      - name: Finalize release notes
+        if: always() && steps.links.outputs.skip != 'true' && env.PUBLISH_RELEASE == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          tag="webm-${{ github.run_number }}-w${{ matrix.worker }}"
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            echo "No release was created — nothing to finalize."
+            exit 0
+          fi
+          notes="$RUNNER_TEMP/release_notes.md"
+          {
+            echo "Converted from Google Drive — run #${{ github.run_number }}"
+            echo ""
+            echo "🔒 Files are **AES-256 encrypted** (\`.webm.enc\`) — the direct links only serve scrambled bytes. Members watch them in the library:"
+            echo "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/library.html"
+            echo ""
+            echo "| File | Size |"
+            echo "|------|------|"
+            while IFS= read -r -d '' f; do
+              rel="${f#"$WEBM_DIR"/}"
+              if [[ "$rel" == */* ]]; then
+                label="$(dirname "$rel" | tr '/' '_')__$(basename "$rel")"
+              else
+                label="$rel"
+              fi
+              printf '| `%s` | %s |\n' "$label" "$(du -h --apparent-size "$f" | cut -f1)"
+            done < <(find "$WEBM_DIR" -type f -print0 | sort -z)
+            if [[ -s "$RUNNER_TEMP/staging/failures.txt" ]]; then
+              echo ""
+              echo "⚠️ Links that failed to download:"
+              sed -e 's/^/- `/; s/$/`/' "$RUNNER_TEMP/staging/failures.txt"
+            fi
+          } > "$notes"
+          # --title is deliberately NOT passed: the course-name title set at
+          # release creation must survive; only the notes get refreshed here.
+          gh release edit "$tag" --notes-file "$notes"
+          {
+            echo ""
+            echo "## 📦 Release"
+            echo ""
+            echo "All WebM files: **[\`$tag\`](https://github.com/${{ github.repository }}/releases/tag/$tag)**"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Release finalized: $tag"
+
+      # ── Artifacts (encrypted videos always; originals only if enabled) ─────
+      - name: Upload encrypted videos artifact
+        if: always() && steps.links.outputs.skip != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: encrypted-videos-w${{ matrix.worker }}
+          path: ${{ env.WEBM_DIR }}/
+          if-no-files-found: ignore
+
+      - name: Upload originals artifact
+        if: always() && steps.links.outputs.skip != 'true' && env.UPLOAD_ORIGINALS == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: downloaded-originals-w${{ matrix.worker }}
+          path: ${{ env.DOWNLOAD_DIR }}/
+          if-no-files-found: ignore
+
+      # ── Optional: commit files into the repo instead ────────────────────────
+      - name: Commit downloads and WebM files
+        if: matrix.worker == 1 && steps.links.outputs.skip != 'true' && env.COMMIT_TO_REPO == 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p "$DOWNLOAD_DIR" "$WEBM_DIR"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # GitHub rejects pushes containing files >100 MB — keep bigger ones
+          # out of the commit (they are in the release/artifacts anyway).
+          oversized=$(mktemp)
+          find "$DOWNLOAD_DIR" "$WEBM_DIR" -type f -size "+${MAX_COMMIT_MB}M" -print > "$oversized" || true
+
+          git add "$DOWNLOAD_DIR" "$WEBM_DIR"
+          if [[ -s "$oversized" ]]; then
+            {
+              echo ""
+              echo "## ⚠️ Files too large to commit (> ${MAX_COMMIT_MB} MB)"
+              echo ""
+              echo "These stay out of the repo (GitHub's 100 MB limit) but are in the release/artifacts:"
+              echo ""
+            } >> "$GITHUB_STEP_SUMMARY"
+            while IFS= read -r f; do
+              git reset -q -- "$f"
+              echo "- \`${f}\` ($(du -h --apparent-size "$f" | cut -f1))" >> "$GITHUB_STEP_SUMMARY"
+              echo "::warning::Not committing oversized file: $f"
+            done < "$oversized"
+          fi
+
+          if git diff --cached --quiet; then
+            echo "Nothing new to commit."
+          else
+            git commit -m "drive-to-webm: import files & convert videos to WebM (run #${{ github.run_number }}) [skip ci]"
+            if ! git push origin "HEAD:${{ github.ref_name }}"; then
+              echo "::warning::Push rejected — rebasing on remote and retrying"
+              git fetch origin "${{ github.ref_name }}"
+              git rebase "origin/${{ github.ref_name }}"
+              git push origin "HEAD:${{ github.ref_name }}"
+            fi
+            echo "Pushed to origin/${{ github.ref_name }}"
+          fi
+
+      # ── Consume the queue: remove processed links from links.txt ────────────
+      # (only for push-triggered runs; manual runs leave the file untouched)
+      - name: Update links.txt queue
+        if: always() && steps.links.outputs.skip != 'true' && github.event_name != 'workflow_dispatch' && matrix.worker == 1
+        run: |
+          set -euo pipefail
+          failures="$RUNNER_TEMP/staging/failures.txt"
+          if [[ ! -f "$failures" ]]; then
+            echo "Download phase did not run — leaving links.txt untouched."
+            exit 0
+          fi
+          if [[ -s "$failures" ]]; then
+            # keep only links that failed (strip the failure notes).
+            # API courses manage their own retries via api-progress-w*.json —
+            # they must never land in links.txt (they'd be processed twice).
+            sed -E 's/ \([0-9]+ file\(s\) failed\)$//' "$failures" \
+              | grep -vxF -f <(jq -r '.[].url' api-selected.json 2>/dev/null) > links.txt || true
+            if [[ ! -s links.txt ]]; then
+              echo '# Google Drive links — one per line. Add links and push to main;' > links.txt
+              echo '# this file is emptied automatically after every successful run.' >> links.txt
+            else
+              echo "Keeping failed manual link(s) in links.txt for retry."
+            fi
+          else
+            echo '# Google Drive links — one per line. Add links and push to main;' > links.txt
+            echo '# this file is emptied automatically after every successful run.' >> links.txt
+            echo "All links processed — links.txt emptied."
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add links.txt
+          if git diff --cached --quiet; then
+            echo "links.txt unchanged."
+          else
+            git commit -m "drive-to-webm: update links queue (run #${{ github.run_number }}) [skip ci]"
+            if ! git push origin "HEAD:${{ github.ref_name }}"; then
+              git fetch origin "${{ github.ref_name }}" && git rebase "origin/${{ github.ref_name }}" \
+                && git push origin "HEAD:${{ github.ref_name }}"
+            fi
+          fi
+
+      - name: Update API queue progress
+        if: always() && steps.links.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          if [[ ! -f api-selected.json ]] || ! python3 -c "import json,sys; sys.exit(0 if json.load(open('api-selected.json')) else 1)"; then
+            echo "No API courses in this run — nothing to update."
+            exit 0
+          fi
+          failures="$RUNNER_TEMP/staging/failures.txt"
+          if [[ ! -f "$failures" ]]; then
+            echo "Download phase did not complete — leaving API progress untouched (will retry)."
+            exit 0
+          fi
+          WORKER="${{ matrix.worker }}" python3 - "$failures" <<'PY'
+          import json, sys
+          sel = json.load(open("api-selected.json"))
+          fail = set()
+          for line in open(sys.argv[1]):
+              line = line.strip()
+              if line:
+                  fail.add(line.split(" (")[0].strip())
+          pfile = "api-progress-w%s.json" % os.environ.get("WORKER", "1")
+          progress = {"courses": []}
+          try:
+              progress = json.load(open(pfile))
+          except Exception:
+              pass
+          by_id = {int(c.get("id", 0)): c for c in progress.get("courses", [])}
+          for c in sel:
+              rec = by_id.get(c["id"], {"id": c["id"], "name": c["name"], "url": c["url"], "attempts": 1})
+              rec["status"] = "failed" if c["url"] in fail else "done"
+              by_id[c["id"]] = rec
+          progress["courses"] = sorted(by_id.values(), key=lambda c: c["id"])
+          json.dump(progress, open(pfile, "w"), ensure_ascii=False, indent=1)
+          done = sum(1 for c in progress["courses"] if c.get("status") == "done")
+          skipped = sum(1 for c in progress["courses"] if c.get("status") == "failed" and int(c.get("attempts", 0)) >= 2)
+          print(f"API progress: {done} course(s) published, {skipped} skipped after retries.")
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "api-progress-w${{ matrix.worker }}.json"
+          if git diff --cached --quiet; then
+            echo "api-progress-w${{ matrix.worker }}.json unchanged."
+          else
+            git commit -m "drive-to-webm: api queue progress (run #${{ github.run_number }} w${{ matrix.worker }}) [skip ci]"
+            if ! git push origin "HEAD:${{ github.ref_name }}"; then
+              git fetch origin "${{ github.ref_name }}" && git rebase "origin/${{ github.ref_name }}" \
+                && git push origin "HEAD:${{ github.ref_name }}"
+            fi
+          fi
+
+      # ── Fail the job (visibly) if any link could not be downloaded ──────────
+      - name: Report failed links
+        if: always() && steps.links.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          if [[ -s "$RUNNER_TEMP/staging/failures.txt" ]]; then
+            {
+              echo ""
+              echo "## ❌ Links that failed to download"
+              echo ""
+              sed -e 's/^/- `/; s/$/`/' "$RUNNER_TEMP/staging/failures.txt"
+              echo ""
+              echo "They stay in \`links.txt\` — re-run the workflow from the **Actions** tab to retry."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::$(grep -c . "$RUNNER_TEMP/staging/failures.txt") link(s) failed to download — see the job summary."
+            exit 1
+          fi

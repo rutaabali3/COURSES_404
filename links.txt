@@ -1,0 +1,13 @@
+# Google Drive links — one per line. Lines starting with # are ignored.
+#
+# This file is OPTIONAL: the workflow also pulls the next unprocessed course
+# from your catalog API automatically (COURSE_API, top of the workflow file)
+# and runs by itself every 6 hours. Add links here only for manual extras —
+# they are processed together with the next API course, and this file empties
+# itself after every successful run.
+#
+# Works with public / anyone-with-the-link files and folders, e.g.:
+#   https://drive.google.com/file/d/FILE_ID/view?usp=sharing
+#   https://drive.google.com/open?id=FILE_ID
+#   https://drive.google.com/uc?id=FILE_ID
+#   https://drive.google.com/drive/folders/FOLDER_ID
