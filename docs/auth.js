@@ -1,1 +1,1 @@
-window.SITE_AUTH = { configured: false };
+window.SITE_AUTH = { configured: true, key: "courses404:freecourses" };
