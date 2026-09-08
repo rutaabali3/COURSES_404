@@ -117,6 +117,18 @@ A zero-framework, static web application hosted on GitHub Pages or Vercel dynami
 
 ---
 
+## Course Sources & Community Channels
+
+Courses in this library are drafted and curated from the following official sources and community channels:
+
+- **Primary Website / Catalog**: [https://ahm7xmakki.com/courses](https://ahm7xmakki.com/courses)
+- **WhatsApp Channel — AHM₇ Tech**: [https://whatsapp.com/channel/0029VaOqbIr2P59sgcIri51d](https://whatsapp.com/channel/0029VaOqbIr2P59sgcIri51d)
+- **WhatsApp Channel — Muhmmad Makki**: [https://whatsapp.com/channel/0029Vb901QrFy724Izy9Wn0m](https://whatsapp.com/channel/0029Vb901QrFy724Izy9Wn0m)
+- **WhatsApp Channel — AHM₇ Courses**: [https://whatsapp.com/channel/0029VaeW5vf05MUaVgitg30e](https://whatsapp.com/channel/0029VaeW5vf05MUaVgitg30e)
+- **WhatsApp Channel — UDEMY 📚 𝘼𝙃𝙈₇**: [https://whatsapp.com/channel/0029Var82nZCxoAskPVlhM2T](https://whatsapp.com/channel/0029Var82nZCxoAskPVlhM2T)
+
+---
+
 ## FILE SYSTEM MAP
 
 <details open>

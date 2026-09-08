@@ -143,8 +143,9 @@ p{margin:0 0 1.1em}
 .cta-band h2{font-size:clamp(26px,3.4vw,34px);margin:0 0 12px}
 .cta-band p{color:var(--muted);max-width:56ch;margin:0 0 26px}
 .site-footer{border-top:1px solid var(--line);padding:48px 0 36px;font-size:14px}
-.footer-grid{display:grid;gap:32px;grid-template-columns:2fr 1fr 1fr}
-@media(max-width:720px){.footer-grid{grid-template-columns:1fr}}
+.footer-grid{display:grid;gap:32px;grid-template-columns:1.8fr 1fr 1.2fr 1.4fr}
+@media(max-width:880px){.footer-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:540px){.footer-grid{grid-template-columns:1fr}}
 .site-footer h4{font:600 12px var(--sans);letter-spacing:.14em;text-transform:uppercase;
   color:var(--muted);margin:0 0 12px}
 .site-footer a{color:var(--ink)}
@@ -154,6 +155,20 @@ p{margin:0 0 1.1em}
 .foot-bottom{border-top:1px solid var(--line);margin-top:40px;padding-top:20px;
   color:var(--muted);font-size:13px;display:flex;justify-content:space-between;
   gap:12px;flex-wrap:wrap}
+
+/* ── source cards ───────────────────────────────────── */
+.source-card{border-left:3px solid var(--accent);gap:12px;transition:transform .15s, border-color .15s}
+.source-card:hover{transform:translateY(-2px);border-color:var(--accent)}
+.source-badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;
+  letter-spacing:.08em;text-transform:uppercase;padding:3px 10px;border-radius:20px;
+  background:var(--accent-soft);color:var(--accent);width:fit-content}
+.source-badge.wa{background:#e7f8ef;color:#0f7b58;border:1px solid rgba(15,123,88,.2)}
+.source-link-wrap{margin-top:auto;padding-top:12px}
+.source-btn{display:inline-flex;align-items:center;gap:8px;font-size:13px;padding:9px 14px;
+  border-color:var(--line-strong);border-radius:6px}
+.source-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent);text-decoration:none}
+.source-btn.wa-btn{color:#0b6648;border-color:rgba(15,123,88,.3);background:#f6fbf8}
+.source-btn.wa-btn:hover{background:#0f7b58;color:#fff;border-color:#0f7b58}
 
 /* ── prose pages (about/faq/contact) ────────────────── */
 .page-head{padding-top:64px;padding-bottom:40px;border-bottom:1px solid var(--line)}
@@ -179,6 +194,7 @@ p{margin:0 0 1.1em}
     <nav class="site-nav" id="nav">
       <a href="index.html" class="active">Home</a>
       <a href="library.html">Library</a>
+      <a href="#sources">Sources &amp; Channels</a>
       <a class="nav-cta" href="library.html">Watch now</a>
     </nav>
     <button class="nav-toggle" id="navToggle" aria-controls="nav" aria-expanded="false">Menu</button>
@@ -192,10 +208,12 @@ p{margin:0 0 1.1em}
     <h1>Learn the skills that actually pay.</h1>
     <p class="lead">Complete, practical video courses on making money online —
     the exact steps, in order, from first setup to real results.
+    Drafted and curated from <a href="https://ahm7xmakki.com/courses" target="_blank" rel="noopener">ahm7xmakki.com/courses</a>
+    and official <a href="#sources">WhatsApp community channels</a>.
     No fluff, no theory-dumps: watch, copy, apply — free for everyone.</p>
     <div class="actions">
       <a class="btn btn-primary" href="library.html">Browse the library</a>
-      <a class="btn btn-outline" href="#courses">See what's inside</a>
+      <a class="btn btn-outline" href="#sources">Course sources &amp; channels</a>
     </div>
   </section>
 
@@ -274,11 +292,83 @@ p{margin:0 0 1.1em}
     </div>
   </section>
 
+  <section class="section" id="sources">
+    <div class="container">
+      <div class="section-head"><span class="no">04</span><h2>Course Sources &amp; Channels</h2></div>
+      <p class="section-sub">All training courses in this library are drafted and curated from Muhammad Makki's catalog and official community channels. Visit the primary website or join the WhatsApp channels below to follow new lesson releases, tech tutorials, and free Udemy coupons.</p>
+      <div class="grid">
+        <article class="card source-card">
+          <div class="source-badge">Primary Catalog</div>
+          <h3>ahm7xmakki.com/courses</h3>
+          <p>The primary source website from which video courses and tutorials are drafted into our free learning library.</p>
+          <div class="source-link-wrap">
+            <a class="btn btn-outline btn-sm source-btn" href="https://ahm7xmakki.com/courses" target="_blank" rel="noopener">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+              Visit Course Catalog &rarr;
+            </a>
+          </div>
+          <div class="meta"><span><b>Source</b> ahm7xmakki.com</span><span><b>Format</b> Web</span></div>
+        </article>
+
+        <article class="card source-card">
+          <div class="source-badge wa">WhatsApp Channel</div>
+          <h3>AHM&#8327; Tech</h3>
+          <p>Technology guides, digital tools, software tips, and setup tutorials for builders and earners.</p>
+          <div class="source-link-wrap">
+            <a class="btn btn-outline btn-sm source-btn wa-btn" href="https://whatsapp.com/channel/0029VaOqbIr2P59sgcIri51d" target="_blank" rel="noopener">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm.01 1.67c2.2 0 4.26.86 5.82 2.42a8.225 8.225 0 0 1 2.41 5.83c0 4.54-3.7 8.24-8.24 8.24-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.196 8.196 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.24-8.24zm4.52 11.66c-.19.53-1.11 1.04-1.53 1.1-.41.07-.94.1-1.52-.09-.35-.11-.8-.26-1.38-.51-2.44-1.06-4.04-3.55-4.16-3.71-.12-.17-.99-1.32-.99-2.52 0-1.2.63-1.79.85-2.03.23-.24.5-.3.67-.3.17 0 .34 0 .49.01.15.01.36-.06.56.43.21.5.71 1.74.78 1.87.06.13.1.28.02.45-.09.17-.13.28-.26.43-.13.15-.27.34-.39.46-.13.13-.26.27-.11.53.15.26.67 1.1 1.43 1.78.98.87 1.81 1.14 2.07 1.27.26.13.41.11.56-.06.15-.17.65-.75.82-1.01.17-.26.35-.22.58-.13.24.09 1.51.71 1.77.84.26.13.43.19.5.3.06.11.06.64-.13 1.17z"/></svg>
+              Join AHM&#8327; Tech &rarr;
+            </a>
+          </div>
+          <div class="meta"><span><b>Channel</b> WhatsApp</span><span><b>Topic</b> Tech &amp; Tools</span></div>
+        </article>
+
+        <article class="card source-card">
+          <div class="source-badge wa">WhatsApp Channel</div>
+          <h3>Muhmmad Makki</h3>
+          <p>Official announcements, curriculum releases, and personal insights directly from Muhammad Makki.</p>
+          <div class="source-link-wrap">
+            <a class="btn btn-outline btn-sm source-btn wa-btn" href="https://whatsapp.com/channel/0029Vb901QrFy724Izy9Wn0m" target="_blank" rel="noopener">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm.01 1.67c2.2 0 4.26.86 5.82 2.42a8.225 8.225 0 0 1 2.41 5.83c0 4.54-3.7 8.24-8.24 8.24-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.196 8.196 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.24-8.24zm4.52 11.66c-.19.53-1.11 1.04-1.53 1.1-.41.07-.94.1-1.52-.09-.35-.11-.8-.26-1.38-.51-2.44-1.06-4.04-3.55-4.16-3.71-.12-.17-.99-1.32-.99-2.52 0-1.2.63-1.79.85-2.03.23-.24.5-.3.67-.3.17 0 .34 0 .49.01.15.01.36-.06.56.43.21.5.71 1.74.78 1.87.06.13.1.28.02.45-.09.17-.13.28-.26.43-.13.15-.27.34-.39.46-.13.13-.26.27-.11.53.15.26.67 1.1 1.43 1.78.98.87 1.81 1.14 2.07 1.27.26.13.41.11.56-.06.15-.17.65-.75.82-1.01.17-.26.35-.22.58-.13.24.09 1.51.71 1.77.84.26.13.43.19.5.3.06.11.06.64-.13 1.17z"/></svg>
+              Join Muhmmad Makki &rarr;
+            </a>
+          </div>
+          <div class="meta"><span><b>Channel</b> WhatsApp</span><span><b>Creator</b> Updates</span></div>
+        </article>
+
+        <article class="card source-card">
+          <div class="source-badge wa">WhatsApp Channel</div>
+          <h3>AHM&#8327; Courses</h3>
+          <p>Dedicated broadcasts for new video course drops, curriculum announcements, and lesson releases.</p>
+          <div class="source-link-wrap">
+            <a class="btn btn-outline btn-sm source-btn wa-btn" href="https://whatsapp.com/channel/0029VaeW5vf05MUaVgitg30e" target="_blank" rel="noopener">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm.01 1.67c2.2 0 4.26.86 5.82 2.42a8.225 8.225 0 0 1 2.41 5.83c0 4.54-3.7 8.24-8.24 8.24-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.196 8.196 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.24-8.24zm4.52 11.66c-.19.53-1.11 1.04-1.53 1.1-.41.07-.94.1-1.52-.09-.35-.11-.8-.26-1.38-.51-2.44-1.06-4.04-3.55-4.16-3.71-.12-.17-.99-1.32-.99-2.52 0-1.2.63-1.79.85-2.03.23-.24.5-.3.67-.3.17 0 .34 0 .49.01.15.01.36-.06.56.43.21.5.71 1.74.78 1.87.06.13.1.28.02.45-.09.17-.13.28-.26.43-.13.15-.27.34-.39.46-.13.13-.26.27-.11.53.15.26.67 1.1 1.43 1.78.98.87 1.81 1.14 2.07 1.27.26.13.41.11.56-.06.15-.17.65-.75.82-1.01.17-.26.35-.22.58-.13.24.09 1.51.71 1.77.84.26.13.43.19.5.3.06.11.06.64-.13 1.17z"/></svg>
+              Join AHM&#8327; Courses &rarr;
+            </a>
+          </div>
+          <div class="meta"><span><b>Channel</b> WhatsApp</span><span><b>Topic</b> Video Drops</span></div>
+        </article>
+
+        <article class="card source-card">
+          <div class="source-badge wa">WhatsApp Channel</div>
+          <h3>UDEMY &#128218; &#120276;&#120283;&#120288;&#8327;</h3>
+          <p>Daily 100% free Udemy coupons, paid certification courses made free, and special offers.</p>
+          <div class="source-link-wrap">
+            <a class="btn btn-outline btn-sm source-btn wa-btn" href="https://whatsapp.com/channel/0029Var82nZCxoAskPVlhM2T" target="_blank" rel="noopener">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm.01 1.67c2.2 0 4.26.86 5.82 2.42a8.225 8.225 0 0 1 2.41 5.83c0 4.54-3.7 8.24-8.24 8.24-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.196 8.196 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.24-8.24zm4.52 11.66c-.19.53-1.11 1.04-1.53 1.1-.41.07-.94.1-1.52-.09-.35-.11-.8-.26-1.38-.51-2.44-1.06-4.04-3.55-4.16-3.71-.12-.17-.99-1.32-.99-2.52 0-1.2.63-1.79.85-2.03.23-.24.5-.3.67-.3.17 0 .34 0 .49.01.15.01.36-.06.56.43.21.5.71 1.74.78 1.87.06.13.1.28.02.45-.09.17-.13.28-.26.43-.13.15-.27.34-.39.46-.13.13-.26.27-.11.53.15.26.67 1.1 1.43 1.78.98.87 1.81 1.14 2.07 1.27.26.13.41.11.56-.06.15-.17.65-.75.82-1.01.17-.26.35-.22.58-.13.24.09 1.51.71 1.77.84.26.13.43.19.5.3.06.11.06.64-.13 1.17z"/></svg>
+              Join UDEMY &#128218; &#120276;&#120283;&#120288;&#8327; &rarr;
+            </a>
+          </div>
+          <div class="meta"><span><b>Channel</b> WhatsApp</span><span><b>Benefit</b> Free Coupons</span></div>
+        </article>
+      </div>
+    </div>
+  </section>
+
   <section class="cta-band">
     <div class="container">
       <h2>Ready to start earning online?</h2>
-      <p>It's free — open the library and start with lesson one
-      today.</p>
+      <p>It's free — open the library and start with lesson one today.</p>
       <a class="btn btn-primary" href="library.html">Open the library</a>
     </div>
   </section>
@@ -289,26 +379,36 @@ p{margin:0 0 1.1em}
     <div class="footer-grid">
       <div>
         <a class="brand" href="index.html">Courses&nbsp;<em>404</em></a>
-        <p class="about">Practical video courses on online earning — the skills
-        nobody else teaches, in plain language.</p>
+        <p class="about">Practical video courses on online earning — drafted and curated from <a href="https://ahm7xmakki.com/courses" target="_blank" rel="noopener">ahm7xmakki.com</a> and official WhatsApp community channels.</p>
       </div>
       <div>
         <h4>Explore</h4>
         <div class="footer-links">
           <a href="index.html">Home</a>
           <a href="library.html">The library</a>
+          <a href="#sources">Sources &amp; Channels</a>
         </div>
       </div>
       <div>
-        <h4>Library</h4>
+        <h4>Course Source</h4>
         <div class="footer-links">
-          <a href="library.html">Open the library</a>
+          <a href="https://ahm7xmakki.com/courses" target="_blank" rel="noopener">ahm7xmakki.com/courses</a>
+          <a href="library.html">Free Video Library</a>
+        </div>
+      </div>
+      <div>
+        <h4>WhatsApp Channels</h4>
+        <div class="footer-links">
+          <a href="https://whatsapp.com/channel/0029VaOqbIr2P59sgcIri51d" target="_blank" rel="noopener">AHM&#8327; Tech</a>
+          <a href="https://whatsapp.com/channel/0029Vb901QrFy724Izy9Wn0m" target="_blank" rel="noopener">Muhmmad Makki</a>
+          <a href="https://whatsapp.com/channel/0029VaeW5vf05MUaVgitg30e" target="_blank" rel="noopener">AHM&#8327; Courses</a>
+          <a href="https://whatsapp.com/channel/0029Var82nZCxoAskPVlhM2T" target="_blank" rel="noopener">UDEMY &#128218; &#120276;&#120283;&#120288;&#8327;</a>
         </div>
       </div>
     </div>
     <div class="foot-bottom">
-      <span>© Courses 404 — every course is free to watch.</span>
-      <span>New lessons added regularly.</span>
+      <span>&copy; Courses 404 — drafted from <a href="https://ahm7xmakki.com/courses" target="_blank" rel="noopener">ahm7xmakki.com</a>. Every course is free to watch.</span>
+      <span>Follow our WhatsApp channels for new updates.</span>
     </div>
   </div>
 </footer>

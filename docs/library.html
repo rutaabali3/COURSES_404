@@ -193,9 +193,25 @@ p{margin:0 0 1.1em}
   color:var(--ink)}
 .btn-app:hover{border-color:var(--accent);color:var(--accent)}
 main#main{max-width:1280px;margin:0 auto;padding:24px 20px}
-.app-footer{text-align:center;color:var(--muted);font-size:12.5px;padding:24px;
-  border-top:1px solid var(--line);margin-top:20px}
+.app-footer{text-align:center;color:var(--muted);font-size:13px;padding:32px 20px;
+  border-top:1px solid var(--line);margin-top:28px}
 .app-footer a{color:var(--accent)}
+.app-footer-sources{margin-bottom:18px}
+.app-footer-sources h4{margin:0 0 6px;font:600 12px var(--sans);letter-spacing:.12em;text-transform:uppercase;color:var(--ink)}
+.app-footer-sources p{margin:0 0 14px;color:var(--muted);font-size:13px}
+.app-footer-chips{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-bottom:14px}
+.source-strip{background:var(--accent-soft);border-bottom:1px solid var(--line);padding:9px 20px;font-size:13px}
+.source-strip-inner{max-width:1280px;margin:0 auto;display:flex;align-items:center;flex-wrap:wrap;gap:8px 14px}
+.source-tag{font:600 11px var(--mono);text-transform:uppercase;color:var(--accent);letter-spacing:.06em}
+.source-link{font-weight:600;color:var(--accent);display:inline-flex;align-items:center;gap:5px}
+.source-link:hover{text-decoration:underline}
+.source-divider{color:var(--line-strong)}
+.source-channels-title{font-weight:600;color:var(--ink);display:inline-flex;align-items:center;gap:5px}
+.source-chips{display:inline-flex;flex-wrap:wrap;gap:6px;align-items:center}
+.source-chip{background:var(--surface);border:1px solid var(--line-strong);border-radius:4px;padding:3px 8px;font-size:12px;color:var(--ink);text-decoration:none;transition:.15s;display:inline-flex;align-items:center;gap:4px}
+.source-chip:hover{border-color:var(--accent);color:var(--accent);text-decoration:none}
+.source-chip.wa{color:#0f7b58}
+.source-chip.wa:hover{border-color:#128c7e;color:#128c7e;background:#f4fbf7}
 .banner{border:1px solid var(--line);background:var(--surface);
   border-left:3px solid var(--accent);border-radius:0 6px 6px 0;
   padding:12px 16px;margin:0 0 18px;color:var(--muted);font-size:14px}
@@ -288,7 +304,17 @@ section.batch{margin-bottom:30px}
     <div class="login-card" id="loginCard">
       <h2>Coming soon</h2>
       <div class="hint" id="loginNote">The library will be ready shortly —
-      the first lessons are on their way. Check back soon.</div>
+      the first lessons are on their way. Courses are drafted from
+      <a href="https://ahm7xmakki.com/courses" target="_blank" rel="noopener">ahm7xmakki.com/courses</a>. Check back soon.</div>
+      <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line);font-size:13px;line-height:1.6">
+        <strong style="color:var(--ink);display:block;margin-bottom:6px">Join official WhatsApp channels:</strong>
+        <div style="display:flex;flex-direction:column;gap:5px">
+          <a href="https://whatsapp.com/channel/0029VaOqbIr2P59sgcIri51d" target="_blank" rel="noopener">AHM&#8327; Tech &rarr;</a>
+          <a href="https://whatsapp.com/channel/0029Vb901QrFy724Izy9Wn0m" target="_blank" rel="noopener">Muhmmad Makki &rarr;</a>
+          <a href="https://whatsapp.com/channel/0029VaeW5vf05MUaVgitg30e" target="_blank" rel="noopener">AHM&#8327; Courses &rarr;</a>
+          <a href="https://whatsapp.com/channel/0029Var82nZCxoAskPVlhM2T" target="_blank" rel="noopener">UDEMY &#128218; &#120276;&#120283;&#120288;&#8327; &rarr;</a>
+        </div>
+      </div>
     </div>
     <p class="login-foot"><a href="index.html">← Back to Courses 404</a></p>
   </div>
@@ -299,13 +325,70 @@ section.batch{margin-bottom:30px}
   <header class="app-header">
     <a class="brand" href="index.html">Courses&nbsp;<em>404</em></a>
     <div id="stats"></div>
+    <a class="btn-app" href="index.html#sources" title="View course sources & WhatsApp channels">Sources &amp; Channels</a>
     <input id="search" type="search" placeholder="Search lessons…" autocomplete="off">
     <button class="btn-app" id="refresh" title="Reload the lesson list">Refresh</button>
   </header>
+  <aside class="source-strip" aria-label="Course sources and WhatsApp channels">
+    <div class="source-strip-inner">
+      <span class="source-tag">Source</span>
+      <a class="source-link" href="https://ahm7xmakki.com/courses" target="_blank" rel="noopener">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+        ahm7xmakki.com/courses
+      </a>
+      <span class="source-divider">|</span>
+      <span class="source-channels-title">WhatsApp Channels:</span>
+      <div class="source-chips">
+        <a class="source-chip wa" href="https://whatsapp.com/channel/0029VaOqbIr2P59sgcIri51d" target="_blank" rel="noopener">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="vertical-align:-2px"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm.01 1.67c2.2 0 4.26.86 5.82 2.42a8.225 8.225 0 0 1 2.41 5.83c0 4.54-3.7 8.24-8.24 8.24-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.196 8.196 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.24-8.24zm4.52 11.66c-.19.53-1.11 1.04-1.53 1.1-.41.07-.94.1-1.52-.09-.35-.11-.8-.26-1.38-.51-2.44-1.06-4.04-3.55-4.16-3.71-.12-.17-.99-1.32-.99-2.52 0-1.2.63-1.79.85-2.03.23-.24.5-.3.67-.3.17 0 .34 0 .49.01.15.01.36-.06.56.43.21.5.71 1.74.78 1.87.06.13.1.28.02.45-.09.17-.13.28-.26.43-.13.15-.27.34-.39.46-.13.13-.26.27-.11.53.15.26.67 1.1 1.43 1.78.98.87 1.81 1.14 2.07 1.27.26.13.41.11.56-.06.15-.17.65-.75.82-1.01.17-.26.35-.22.58-.13.24.09 1.51.71 1.77.84.26.13.43.19.5.3.06.11.06.64-.13 1.17z"/></svg>
+          AHM&#8327; Tech
+        </a>
+        <a class="source-chip wa" href="https://whatsapp.com/channel/0029Vb901QrFy724Izy9Wn0m" target="_blank" rel="noopener">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="vertical-align:-2px"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm.01 1.67c2.2 0 4.26.86 5.82 2.42a8.225 8.225 0 0 1 2.41 5.83c0 4.54-3.7 8.24-8.24 8.24-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.196 8.196 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.24-8.24zm4.52 11.66c-.19.53-1.11 1.04-1.53 1.1-.41.07-.94.1-1.52-.09-.35-.11-.8-.26-1.38-.51-2.44-1.06-4.04-3.55-4.16-3.71-.12-.17-.99-1.32-.99-2.52 0-1.2.63-1.79.85-2.03.23-.24.5-.3.67-.3.17 0 .34 0 .49.01.15.01.36-.06.56.43.21.5.71 1.74.78 1.87.06.13.1.28.02.45-.09.17-.13.28-.26.43-.13.15-.27.34-.39.46-.13.13-.26.27-.11.53.15.26.67 1.1 1.43 1.78.98.87 1.81 1.14 2.07 1.27.26.13.41.11.56-.06.15-.17.65-.75.82-1.01.17-.26.35-.22.58-.13.24.09 1.51.71 1.77.84.26.13.43.19.5.3.06.11.06.64-.13 1.17z"/></svg>
+          Muhmmad Makki
+        </a>
+        <a class="source-chip wa" href="https://whatsapp.com/channel/0029VaeW5vf05MUaVgitg30e" target="_blank" rel="noopener">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="vertical-align:-2px"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm.01 1.67c2.2 0 4.26.86 5.82 2.42a8.225 8.225 0 0 1 2.41 5.83c0 4.54-3.7 8.24-8.24 8.24-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.196 8.196 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.24-8.24zm4.52 11.66c-.19.53-1.11 1.04-1.53 1.1-.41.07-.94.1-1.52-.09-.35-.11-.8-.26-1.38-.51-2.44-1.06-4.04-3.55-4.16-3.71-.12-.17-.99-1.32-.99-2.52 0-1.2.63-1.79.85-2.03.23-.24.5-.3.67-.3.17 0 .34 0 .49.01.15.01.36-.06.56.43.21.5.71 1.74.78 1.87.06.13.1.28.02.45-.09.17-.13.28-.26.43-.13.15-.27.34-.39.46-.13.13-.26.27-.11.53.15.26.67 1.1 1.43 1.78.98.87 1.81 1.14 2.07 1.27.26.13.41.11.56-.06.15-.17.65-.75.82-1.01.17-.26.35-.22.58-.13.24.09 1.51.71 1.77.84.26.13.43.19.5.3.06.11.06.64-.13 1.17z"/></svg>
+          AHM&#8327; Courses
+        </a>
+        <a class="source-chip wa" href="https://whatsapp.com/channel/0029Var82nZCxoAskPVlhM2T" target="_blank" rel="noopener">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="vertical-align:-2px"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm.01 1.67c2.2 0 4.26.86 5.82 2.42a8.225 8.225 0 0 1 2.41 5.83c0 4.54-3.7 8.24-8.24 8.24-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.196 8.196 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.24-8.24zm4.52 11.66c-.19.53-1.11 1.04-1.53 1.1-.41.07-.94.1-1.52-.09-.35-.11-.8-.26-1.38-.51-2.44-1.06-4.04-3.55-4.16-3.71-.12-.17-.99-1.32-.99-2.52 0-1.2.63-1.79.85-2.03.23-.24.5-.3.67-.3.17 0 .34 0 .49.01.15.01.36-.06.56.43.21.5.71 1.74.78 1.87.06.13.1.28.02.45-.09.17-.13.28-.26.43-.13.15-.27.34-.39.46-.13.13-.26.27-.11.53.15.26.67 1.1 1.43 1.78.98.87 1.81 1.14 2.07 1.27.26.13.41.11.56-.06.15-.17.65-.75.82-1.01.17-.26.35-.22.58-.13.24.09 1.51.71 1.77.84.26.13.43.19.5.3.06.11.06.64-.13 1.17z"/></svg>
+          UDEMY &#128218; &#120276;&#120283;&#120288;&#8327;
+        </a>
+      </div>
+    </div>
+  </aside>
   <main id="main"></main>
   <footer class="app-footer">
-    New lessons appear here as they are published — browse the
-    <a id="releases-link" href="#">full archive</a>.
+    <div class="app-footer-sources">
+      <h4>Course Catalog &amp; Community Channels</h4>
+      <p>Video courses in this library are drafted and curated from <a href="https://ahm7xmakki.com/courses" target="_blank" rel="noopener">ahm7xmakki.com/courses</a>.</p>
+      <div class="app-footer-chips">
+        <a class="source-chip" href="https://ahm7xmakki.com/courses" target="_blank" rel="noopener">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="vertical-align:-2px"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+          ahm7xmakki.com/courses
+        </a>
+        <a class="source-chip wa" href="https://whatsapp.com/channel/0029VaOqbIr2P59sgcIri51d" target="_blank" rel="noopener">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="vertical-align:-2px"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm.01 1.67c2.2 0 4.26.86 5.82 2.42a8.225 8.225 0 0 1 2.41 5.83c0 4.54-3.7 8.24-8.24 8.24-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.196 8.196 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.24-8.24zm4.52 11.66c-.19.53-1.11 1.04-1.53 1.1-.41.07-.94.1-1.52-.09-.35-.11-.8-.26-1.38-.51-2.44-1.06-4.04-3.55-4.16-3.71-.12-.17-.99-1.32-.99-2.52 0-1.2.63-1.79.85-2.03.23-.24.5-.3.67-.3.17 0 .34 0 .49.01.15.01.36-.06.56.43.21.5.71 1.74.78 1.87.06.13.1.28.02.45-.09.17-.13.28-.26.43-.13.15-.27.34-.39.46-.13.13-.26.27-.11.53.15.26.67 1.1 1.43 1.78.98.87 1.81 1.14 2.07 1.27.26.13.41.11.56-.06.15-.17.65-.75.82-1.01.17-.26.35-.22.58-.13.24.09 1.51.71 1.77.84.26.13.43.19.5.3.06.11.06.64-.13 1.17z"/></svg>
+          AHM&#8327; Tech
+        </a>
+        <a class="source-chip wa" href="https://whatsapp.com/channel/0029Vb901QrFy724Izy9Wn0m" target="_blank" rel="noopener">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="vertical-align:-2px"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm.01 1.67c2.2 0 4.26.86 5.82 2.42a8.225 8.225 0 0 1 2.41 5.83c0 4.54-3.7 8.24-8.24 8.24-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.196 8.196 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.24-8.24zm4.52 11.66c-.19.53-1.11 1.04-1.53 1.1-.41.07-.94.1-1.52-.09-.35-.11-.8-.26-1.38-.51-2.44-1.06-4.04-3.55-4.16-3.71-.12-.17-.99-1.32-.99-2.52 0-1.2.63-1.79.85-2.03.23-.24.5-.3.67-.3.17 0 .34 0 .49.01.15.01.36-.06.56.43.21.5.71 1.74.78 1.87.06.13.1.28.02.45-.09.17-.13.28-.26.43-.13.15-.27.34-.39.46-.13.13-.26.27-.11.53.15.26.67 1.1 1.43 1.78.98.87 1.81 1.14 2.07 1.27.26.13.41.11.56-.06.15-.17.65-.75.82-1.01.17-.26.35-.22.58-.13.24.09 1.51.71 1.77.84.26.13.43.19.5.3.06.11.06.64-.13 1.17z"/></svg>
+          Muhmmad Makki
+        </a>
+        <a class="source-chip wa" href="https://whatsapp.com/channel/0029VaeW5vf05MUaVgitg30e" target="_blank" rel="noopener">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="vertical-align:-2px"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm.01 1.67c2.2 0 4.26.86 5.82 2.42a8.225 8.225 0 0 1 2.41 5.83c0 4.54-3.7 8.24-8.24 8.24-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.196 8.196 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.24-8.24zm4.52 11.66c-.19.53-1.11 1.04-1.53 1.1-.41.07-.94.1-1.52-.09-.35-.11-.8-.26-1.38-.51-2.44-1.06-4.04-3.55-4.16-3.71-.12-.17-.99-1.32-.99-2.52 0-1.2.63-1.79.85-2.03.23-.24.5-.3.67-.3.17 0 .34 0 .49.01.15.01.36-.06.56.43.21.5.71 1.74.78 1.87.06.13.1.28.02.45-.09.17-.13.28-.26.43-.13.15-.27.34-.39.46-.13.13-.26.27-.11.53.15.26.67 1.1 1.43 1.78.98.87 1.81 1.14 2.07 1.27.26.13.41.11.56-.06.15-.17.65-.75.82-1.01.17-.26.35-.22.58-.13.24.09 1.51.71 1.77.84.26.13.43.19.5.3.06.11.06.64-.13 1.17z"/></svg>
+          AHM&#8327; Courses
+        </a>
+        <a class="source-chip wa" href="https://whatsapp.com/channel/0029Var82nZCxoAskPVlhM2T" target="_blank" rel="noopener">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="vertical-align:-2px"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm.01 1.67c2.2 0 4.26.86 5.82 2.42a8.225 8.225 0 0 1 2.41 5.83c0 4.54-3.7 8.24-8.24 8.24-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.196 8.196 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.24-8.24zm4.52 11.66c-.19.53-1.11 1.04-1.53 1.1-.41.07-.94.1-1.52-.09-.35-.11-.8-.26-1.38-.51-2.44-1.06-4.04-3.55-4.16-3.71-.12-.17-.99-1.32-.99-2.52 0-1.2.63-1.79.85-2.03.23-.24.5-.3.67-.3.17 0 .34 0 .49.01.15.01.36-.06.56.43.21.5.71 1.74.78 1.87.06.13.1.28.02.45-.09.17-.13.28-.26.43-.13.15-.27.34-.39.46-.13.13-.26.27-.11.53.15.26.67 1.1 1.43 1.78.98.87 1.81 1.14 2.07 1.27.26.13.41.11.56-.06.15-.17.65-.75.82-1.01.17-.26.35-.22.58-.13.24.09 1.51.71 1.77.84.26.13.43.19.5.3.06.11.06.64-.13 1.17z"/></svg>
+          UDEMY &#128218; &#120276;&#120283;&#120288;&#8327;
+        </a>
+      </div>
+    </div>
+    <div class="app-footer-note">
+      New lessons appear here as they are published &mdash; browse the <a id="releases-link" href="#">full archive</a>.
+    </div>
   </footer>
 </div>
 
