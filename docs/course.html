@@ -1,0 +1,1159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Course Player — Courses 404</title>
+<meta name="description" content="Watch course lectures sequentially with curriculum tracking, auto-advance, and progress bars.">
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%231c1b18'/%3E%3Ctext x='32' y='42' font-family='Georgia,serif' font-size='30' font-weight='bold' fill='%23ffffff' text-anchor='middle'%3E404%3C/text%3E%3C/svg%3E">
+
+<style>
+:root{
+  --bg:#0f1115;
+  --surface:#181b22;
+  --surface-elevated:#222631;
+  --surface-hover:#2b3140;
+  --ink:#f4f5f7;
+  --ink-muted:#9da5b4;
+  --line:#2e3442;
+  --line-strong:#3f475a;
+  --accent:#10b981;
+  --accent-dark:#059669;
+  --accent-soft:rgba(16,185,129,0.14);
+  --danger:#ef4444;
+  --warning:#f59e0b;
+  --radius:8px;
+  --radius-lg:12px;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+  --sidebar-w:380px;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font:15px/1.55 var(--sans);
+  -webkit-font-smoothing:antialiased;
+  min-height:100vh;display:flex;flex-direction:column;
+  overflow-x:hidden;
+}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+button{font-family:inherit}
+
+/* ── Top Header ─────────────────────────────────────────── */
+.top-nav{
+  background:#13151b;border-bottom:1px solid var(--line);
+  position:sticky;top:0;z-index:40;height:60px;
+  display:flex;align-items:center;padding:0 18px;gap:16px;
+}
+.back-link{
+  display:inline-flex;align-items:center;gap:6px;
+  color:var(--ink);font-weight:600;font-size:14px;
+  padding:6px 12px;border-radius:6px;background:var(--surface);
+  border:1px solid var(--line);transition:.15s;white-space:nowrap;
+}
+.back-link:hover{
+  background:var(--surface-elevated);border-color:var(--ink-muted);
+  text-decoration:none;color:#fff;
+}
+.course-title-wrap{
+  flex:1;min-width:0;display:flex;align-items:center;gap:10px;
+}
+.course-tag-badge{
+  font:600 11px var(--mono);text-transform:uppercase;letter-spacing:.05em;
+  background:var(--surface-elevated);color:var(--ink-muted);
+  padding:3px 8px;border-radius:4px;border:1px solid var(--line);white-space:nowrap;
+}
+.top-course-title{
+  font-size:15.5px;font-weight:600;color:var(--ink);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.header-actions{
+  display:flex;align-items:center;gap:12px;
+}
+.progress-pill{
+  display:inline-flex;align-items:center;gap:8px;
+  background:var(--surface);border:1px solid var(--line);
+  border-radius:20px;padding:4px 12px;font-size:12.5px;color:var(--ink-muted);
+}
+.progress-pill strong{color:var(--accent);font-weight:600}
+.btn-toggle-sidebar{
+  background:var(--surface);border:1px solid var(--line);
+  color:var(--ink);border-radius:6px;padding:7px 12px;
+  font-size:13px;font-weight:500;cursor:pointer;display:inline-flex;
+  align-items:center;gap:6px;transition:.15s;
+}
+.btn-toggle-sidebar:hover{background:var(--surface-elevated);border-color:var(--line-strong)}
+
+/* ── Main Layout ────────────────────────────────────────── */
+.classroom-container{
+  display:flex;flex:1;min-height:calc(100vh - 60px);
+}
+.classroom-main{
+  flex:1;min-width:0;display:flex;flex-direction:column;
+  background:#0a0c10;
+}
+.player-viewport{
+  position:relative;background:#000;
+  width:100%;aspect-ratio:16/9;max-height:75vh;
+  display:flex;align-items:center;justify-content:center;
+}
+#videoPlayer{
+  width:100%;height:100%;max-height:75vh;background:#000;
+  outline:none;display:block;
+}
+
+/* ── Player Overlays & States ───────────────────────────── */
+.player-overlay{
+  position:absolute;inset:0;background:rgba(10,12,16,0.92);
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:center;padding:24px;text-align:center;
+  z-index:20;
+}
+.player-overlay[hidden]{display:none !important}
+.loader-spinner{
+  width:44px;height:44px;border:3px solid var(--line);
+  border-top-color:var(--accent);border-radius:50%;
+  animation:spin 0.8s linear infinite;margin-bottom:16px;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.overlay-title{font-size:18px;font-weight:600;margin-bottom:8px;color:#fff}
+.overlay-msg{color:var(--ink-muted);font-size:14px;max-width:500px;margin-bottom:14px}
+.overlay-pbar{
+  width:min(400px,90%);height:8px;background:var(--surface);
+  border-radius:6px;overflow:hidden;border:1px solid var(--line);
+}
+.overlay-pbar-fill{height:100%;width:0%;background:var(--accent);transition:width .2s}
+
+/* Auto next countdown overlay */
+.countdown-box{
+  background:var(--surface);border:1px solid var(--line-strong);
+  padding:24px 30px;border-radius:var(--radius-lg);max-width:440px;
+  box-shadow:0 12px 36px rgba(0,0,0,0.5);text-align:center;
+}
+.countdown-num{font-size:38px;font-weight:700;color:var(--accent);margin:10px 0}
+.countdown-actions{display:flex;justify-content:center;gap:12px;margin-top:18px}
+.btn-primary{
+  background:var(--accent);color:#000;border:0;
+  font-weight:600;padding:10px 20px;border-radius:6px;cursor:pointer;
+  transition:.15s;
+}
+.btn-primary:hover{background:#1fd298}
+.btn-secondary{
+  background:transparent;color:var(--ink);border:1px solid var(--line-strong);
+  padding:10px 18px;border-radius:6px;cursor:pointer;transition:.15s;
+}
+.btn-secondary:hover{border-color:var(--ink-muted);color:#fff}
+
+/* Manual decrypt file picker */
+.manual-box{
+  background:var(--surface);border:1px solid var(--line);
+  padding:20px;border-radius:var(--radius);max-width:480px;text-align:center;
+}
+.manual-box input[type="file"]{display:none}
+
+/* ── Player Control Toolbar ─────────────────────────────── */
+.player-controls-bar{
+  background:var(--surface);border-bottom:1px solid var(--line);
+  padding:12px 20px;display:flex;align-items:center;
+  justify-content:space-between;gap:12px;flex-wrap:wrap;
+}
+.current-lesson-header{
+  min-width:240px;flex:1;
+}
+.current-lesson-sec{
+  font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;
+  color:var(--accent);margin-bottom:2px;
+}
+.current-lesson-name{
+  font-size:16px;font-weight:700;color:#fff;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.toolbar-actions{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+}
+.btn-nav{
+  background:var(--surface-elevated);border:1px solid var(--line);
+  color:var(--ink);padding:8px 14px;border-radius:6px;font-size:13px;
+  font-weight:600;cursor:pointer;display:inline-flex;align-items:center;
+  gap:6px;transition:.15s;
+}
+.btn-nav:hover:not(:disabled){
+  background:var(--surface-hover);border-color:var(--line-strong);color:#fff;
+}
+.btn-nav:disabled{opacity:.4;cursor:not-allowed}
+.btn-complete-toggle{
+  background:var(--accent-soft);border:1px solid var(--accent-dark);
+  color:var(--accent);padding:8px 14px;border-radius:6px;font-size:13px;
+  font-weight:600;cursor:pointer;display:inline-flex;align-items:center;
+  gap:6px;transition:.15s;
+}
+.btn-complete-toggle.is-done{
+  background:var(--accent);color:#000;border-color:var(--accent);
+}
+.autoplay-toggle{
+  display:inline-flex;align-items:center;gap:8px;font-size:12.5px;
+  color:var(--ink-muted);cursor:pointer;user-select:none;
+}
+.autoplay-toggle input{cursor:pointer}
+
+/* ── Under-Video Content Area ───────────────────────────── */
+.lesson-meta-area{
+  padding:24px 28px;max-width:1100px;
+}
+.tab-nav{
+  display:flex;gap:20px;border-bottom:1px solid var(--line);
+  margin-bottom:20px;
+}
+.tab-btn{
+  background:none;border:none;color:var(--ink-muted);
+  padding:10px 0;font-size:14.5px;font-weight:600;cursor:pointer;
+  position:relative;transition:.15s;
+}
+.tab-btn.active{color:var(--accent)}
+.tab-btn.active::after{
+  content:"";position:absolute;bottom:-1px;left:0;right:0;
+  height:2px;background:var(--accent);border-radius:2px;
+}
+.tab-pane{display:none}
+.tab-pane.active{display:block}
+
+.info-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;
+  margin-bottom:24px;
+}
+.info-card{
+  background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--radius);padding:14px 16px;
+}
+.info-card .lbl{font-size:12px;color:var(--ink-muted);text-transform:uppercase;font-weight:600}
+.info-card .val{font-size:14.5px;font-weight:600;margin-top:4px;color:#fff}
+
+.resources-list{
+  display:flex;flex-direction:column;gap:10px;
+}
+.resource-item{
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  padding:12px 16px;gap:12px;
+}
+.resource-name{font-weight:500;color:var(--ink)}
+.resource-size{font-size:12px;color:var(--ink-muted)}
+
+.shortcuts-table{
+  width:100%;border-collapse:collapse;font-size:13.5px;
+}
+.shortcuts-table td{padding:8px 0;border-bottom:1px solid var(--line)}
+.kbd{
+  display:inline-block;padding:3px 8px;font-family:var(--mono);
+  font-size:11.5px;font-weight:600;background:var(--surface-elevated);
+  border:1px solid var(--line-strong);border-radius:4px;color:#fff;
+}
+
+/* ── Curriculum Sidebar ─────────────────────────────────── */
+.classroom-sidebar{
+  width:var(--sidebar-w);background:var(--surface);
+  border-left:1px solid var(--line);display:flex;flex-direction:column;
+  position:sticky;top:60px;height:calc(100vh - 60px);
+  transition:margin-right .25s ease;
+}
+.classroom-sidebar.collapsed{
+  margin-right:calc(-1 * var(--sidebar-w));
+}
+.sidebar-header{
+  padding:16px 20px;border-bottom:1px solid var(--line);
+  background:var(--surface);z-index:10;
+}
+.sidebar-title{
+  font-size:16px;font-weight:700;margin:0 0 8px;color:#fff;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.sidebar-progress{
+  margin-top:10px;
+}
+.sidebar-progress-label{
+  display:flex;justify-content:space-between;font-size:12px;color:var(--ink-muted);
+  margin-bottom:6px;
+}
+.sidebar-progress-bar{
+  height:6px;background:var(--bg);border-radius:4px;overflow:hidden;
+  border:1px solid var(--line);
+}
+.sidebar-progress-fill{
+  height:100%;background:var(--accent);width:0%;transition:width .3s;
+}
+
+.curriculum-list{
+  flex:1;overflow-y:auto;padding:10px 0;
+}
+.section-group{
+  margin-bottom:8px;border-bottom:1px solid var(--line);
+}
+.section-head{
+  padding:12px 20px;background:var(--surface-elevated);
+  font-weight:600;font-size:13.5px;color:var(--ink);
+  display:flex;align-items:center;justify-content:space-between;
+  cursor:pointer;user-select:none;
+}
+.section-head:hover{background:var(--surface-hover)}
+.section-head-title{
+  display:flex;align-items:center;gap:8px;
+}
+.section-head-count{
+  font-size:11.5px;color:var(--ink-muted);font-weight:normal;
+}
+
+.lesson-items{
+  list-style:none;margin:0;padding:0;
+}
+.lesson-item{
+  display:flex;align-items:center;gap:12px;padding:12px 20px;
+  border-top:1px solid rgba(255,255,255,0.03);cursor:pointer;
+  transition:background .15s;position:relative;
+}
+.lesson-item:hover{
+  background:var(--surface-elevated);
+}
+.lesson-item.active{
+  background:rgba(16,185,129,0.12);border-left:3px solid var(--accent);
+}
+.lesson-item.active .lesson-title{
+  color:var(--accent);font-weight:600;
+}
+
+/* Checkbox */
+.lesson-chk{
+  width:18px;height:18px;border-radius:4px;
+  border:2px solid var(--line-strong);background:transparent;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;flex-shrink:0;transition:.15s;
+}
+.lesson-chk:hover{border-color:var(--accent)}
+.lesson-chk.checked{
+  background:var(--accent);border-color:var(--accent);
+}
+.lesson-chk.checked svg{display:block}
+.lesson-chk svg{display:none;width:12px;height:12px;stroke:#000;stroke-width:3}
+
+.lesson-info{
+  flex:1;min-width:0;
+}
+.lesson-title{
+  font-size:13.5px;color:var(--ink);word-break:break-word;
+  line-height:1.4;
+}
+.lesson-meta{
+  font-size:11.5px;color:var(--ink-muted);margin-top:3px;
+  display:flex;gap:8px;align-items:center;
+}
+.lesson-playing-badge{
+  display:none;color:var(--accent);font-size:11px;font-weight:600;
+}
+.lesson-item.active .lesson-playing-badge{
+  display:inline-flex;align-items:center;gap:4px;
+}
+
+/* Responsive */
+@media(max-width:960px){
+  .classroom-container{flex-direction:column}
+  .classroom-sidebar{
+    width:100%;height:auto;position:static;border-left:none;
+    border-top:1px solid var(--line);
+  }
+  .classroom-sidebar.collapsed{display:none;margin-right:0}
+  .btn-toggle-sidebar{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════ TOP NAVIGATION ═══════════ -->
+<header class="top-nav">
+  <a class="back-link" href="library.html" id="backLink">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+    Back to Catalog
+  </a>
+  <div class="course-title-wrap">
+    <span class="course-tag-badge" id="courseTagBadge">Course</span>
+    <div class="top-course-title" id="courseTitleHeader">Loading course…</div>
+  </div>
+  <div class="header-actions">
+    <div class="progress-pill" id="headerProgressPill">
+      <span>Progress:</span>
+      <strong id="headerProgressPct">0%</strong>
+    </div>
+    <button class="btn-toggle-sidebar" id="toggleSidebarBtn" title="Toggle curriculum sidebar">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><line x1="15" y1="3" x2="15" y2="21"></line></svg>
+      Course Content
+    </button>
+  </div>
+</header>
+
+<!-- ═══════════ CLASSROOM ENVIRONMENT ═══════════ -->
+<div class="classroom-container">
+
+  <!-- Left: Player Stage & Lesson Info -->
+  <main class="classroom-main">
+    <div class="player-viewport" id="playerViewport">
+      <video id="videoPlayer" controls playsinline controlslist="nodownload"></video>
+
+      <!-- Status / Decrypting Overlay -->
+      <div class="player-overlay" id="playerOverlay" hidden>
+        <div class="loader-spinner" id="overlaySpinner"></div>
+        <div class="overlay-title" id="overlayTitle">Opening lesson…</div>
+        <div class="overlay-msg" id="overlayMsg">Preparing playback</div>
+        <div class="overlay-pbar" id="overlayPbar" hidden>
+          <div class="overlay-pbar-fill" id="overlayPbarFill"></div>
+        </div>
+
+        <!-- Manual fallback picker -->
+        <div class="manual-box" id="manualBox" hidden>
+          <p style="margin:0 0 12px;font-size:13px;color:var(--ink-muted)">
+            Streaming is offline. Download the encrypted file and select it below:
+          </p>
+          <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+            <a class="btn-secondary" id="manualDlLink" href="#" download>Download Lesson File</a>
+            <button class="btn-primary" id="manualOpenBtn">Select Downloaded File…</button>
+          </div>
+          <input type="file" id="filePicker" accept=".enc,application/octet-stream">
+        </div>
+      </div>
+
+      <!-- Auto Next Countdown Overlay -->
+      <div class="player-overlay" id="nextCountdownOverlay" hidden>
+        <div class="countdown-box">
+          <div style="font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)">Up Next</div>
+          <div style="font-size:17px;font-weight:700;color:#fff;margin:6px 0" id="countdownNextTitle">Next Lesson Title</div>
+          <div class="countdown-num" id="countdownSeconds">5</div>
+          <div class="countdown-actions">
+            <button class="btn-primary" id="btnPlayNow">Play Now</button>
+            <button class="btn-secondary" id="btnCancelNext">Stay on This Lesson</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Control Toolbar -->
+    <div class="player-controls-bar">
+      <div class="current-lesson-header">
+        <div class="current-lesson-sec" id="currentSectionName">Section</div>
+        <div class="current-lesson-name" id="currentLessonTitle">Select a lesson to begin</div>
+      </div>
+      <div class="toolbar-actions">
+        <button class="btn-nav" id="btnPrevLesson" title="Previous lesson (P)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="19 20 9 12 19 4 19 20"></polygon><line x1="5" y1="19" x2="5" y2="5"></line></svg>
+          Previous
+        </button>
+        <button class="btn-complete-toggle" id="btnCompleteToggle">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          <span id="completeToggleText">Mark as Completed</span>
+        </button>
+        <button class="btn-nav" id="btnNextLesson" title="Next lesson (N)">
+          Next
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="5" x2="19" y2="19"></line></svg>
+        </button>
+        <label class="autoplay-toggle" title="Automatically advance to the next lecture when this one ends">
+          <input type="checkbox" id="chkAutoplay" checked>
+          <span>Auto-advance</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Under Video Tabbed Content -->
+    <div class="lesson-meta-area">
+      <nav class="tab-nav">
+        <button class="tab-btn active" data-tab="overview">Overview &amp; Notes</button>
+        <button class="tab-btn" data-tab="resources">Course Downloads (<span id="resCount">0</span>)</button>
+        <button class="tab-btn" data-tab="shortcuts">Keyboard Shortcuts</button>
+      </nav>
+
+      <div class="tab-pane active" id="tab-overview">
+        <div class="info-grid">
+          <div class="info-card">
+            <div class="lbl">Format &amp; Security</div>
+            <div class="val" id="metaEncryption">AES-256 Encrypted WebM</div>
+          </div>
+          <div class="info-card">
+            <div class="lbl">Lecture File Size</div>
+            <div class="val" id="metaFileSize">—</div>
+          </div>
+          <div class="info-card">
+            <div class="lbl">Course Progress</div>
+            <div class="val" id="metaProgressRatio">0 of 0 completed</div>
+          </div>
+          <div class="info-card">
+            <div class="lbl">Official Source</div>
+            <div class="val"><a href="https://ahm7xmakki.com/courses" target="_blank" rel="noopener">ahm7xmakki.com/courses &rarr;</a></div>
+          </div>
+        </div>
+        <p style="color:var(--ink-muted);font-size:14px;line-height:1.6">
+          This course is part of the free <strong>Courses 404</strong> video library. All lessons decrypt client-side directly in your browser. Progress is saved automatically on this device.
+        </p>
+      </div>
+
+      <div class="tab-pane" id="tab-resources">
+        <div class="resources-list" id="resourcesList">
+          <p style="color:var(--ink-muted)">No additional attachments in this course batch.</p>
+        </div>
+      </div>
+
+      <div class="tab-pane" id="tab-shortcuts">
+        <table class="shortcuts-table">
+          <tbody>
+            <tr><td>Play / Pause</td><td><span class="kbd">Space</span> or <span class="kbd">K</span></td></tr>
+            <tr><td>Seek Backward 5 seconds</td><td><span class="kbd">&larr;</span> or <span class="kbd">J</span></td></tr>
+            <tr><td>Seek Forward 5 seconds</td><td><span class="kbd">&rarr;</span> or <span class="kbd">L</span></td></tr>
+            <tr><td>Next Lesson</td><td><span class="kbd">Shift</span> + <span class="kbd">N</span></td></tr>
+            <tr><td>Previous Lesson</td><td><span class="kbd">Shift</span> + <span class="kbd">P</span></td></tr>
+            <tr><td>Toggle Fullscreen</td><td><span class="kbd">F</span></td></tr>
+            <tr><td>Mute / Unmute</td><td><span class="kbd">M</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <!-- Right: Course Content Curriculum Sidebar -->
+  <aside class="classroom-sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-title">
+        <span>Course Content</span>
+        <span style="font-size:12px;color:var(--ink-muted);font-weight:normal" id="sidebarLectureCount">0 lectures</span>
+      </div>
+      <div class="sidebar-progress">
+        <div class="sidebar-progress-label">
+          <span id="sidebarProgressText">0 / 0 completed</span>
+          <span id="sidebarProgressPctText">0%</span>
+        </div>
+        <div class="sidebar-progress-bar">
+          <div class="sidebar-progress-fill" id="sidebarProgressFill"></div>
+        </div>
+      </div>
+    </div>
+    <div class="curriculum-list" id="curriculumList">
+      <!-- Generated section groups & lessons -->
+    </div>
+  </aside>
+
+</div>
+
+<!-- Dependencies -->
+<script src="player-engine.js"></script>
+<script src="auth.js"></script>
+<script src="proxy.js"></script>
+<script src="site-config.js"></script>
+
+<script>
+"use strict";
+
+const PROXY = (typeof window.MEDIA_PROXY === "string" && /^https:\/\//.test(window.MEDIA_PROXY))
+  ? window.MEDIA_PROXY.replace(/\/+$/, "") : null;
+
+const DEMO_MODE = new URLSearchParams(location.search).get("demo") === "1";
+const DEMO_AUTH = { configured: true, key: "demo:demo" };
+const AUTH = DEMO_MODE ? DEMO_AUTH : (window.SITE_AUTH || { configured: false });
+const creds = (AUTH.configured && typeof AUTH.key === "string" && AUTH.key) || null;
+
+const API = "https://api.github.com";
+const MAX_PAGES = 10;
+
+/* DOM elements */
+const videoPlayer = document.getElementById("videoPlayer");
+const playerOverlay = document.getElementById("playerOverlay");
+const overlayTitle = document.getElementById("overlayTitle");
+const overlayMsg = document.getElementById("overlayMsg");
+const overlaySpinner = document.getElementById("overlaySpinner");
+const overlayPbar = document.getElementById("overlayPbar");
+const overlayPbarFill = document.getElementById("overlayPbarFill");
+const manualBox = document.getElementById("manualBox");
+const manualDlLink = document.getElementById("manualDlLink");
+const manualOpenBtn = document.getElementById("manualOpenBtn");
+const filePicker = document.getElementById("filePicker");
+
+const nextCountdownOverlay = document.getElementById("nextCountdownOverlay");
+const countdownNextTitle = document.getElementById("countdownNextTitle");
+const countdownSeconds = document.getElementById("countdownSeconds");
+const btnPlayNow = document.getElementById("btnPlayNow");
+const btnCancelNext = document.getElementById("btnCancelNext");
+
+const courseTagBadge = document.getElementById("courseTagBadge");
+const courseTitleHeader = document.getElementById("courseTitleHeader");
+const headerProgressPct = document.getElementById("headerProgressPct");
+const currentSectionName = document.getElementById("currentSectionName");
+const currentLessonTitle = document.getElementById("currentLessonTitle");
+const btnPrevLesson = document.getElementById("btnPrevLesson");
+const btnNextLesson = document.getElementById("btnNextLesson");
+const btnCompleteToggle = document.getElementById("btnCompleteToggle");
+const completeToggleText = document.getElementById("completeToggleText");
+const chkAutoplay = document.getElementById("chkAutoplay");
+
+const sidebar = document.getElementById("sidebar");
+const toggleSidebarBtn = document.getElementById("toggleSidebarBtn");
+const sidebarLectureCount = document.getElementById("sidebarLectureCount");
+const sidebarProgressText = document.getElementById("sidebarProgressText");
+const sidebarProgressPctText = document.getElementById("sidebarProgressPctText");
+const sidebarProgressFill = document.getElementById("sidebarProgressFill");
+const curriculumList = document.getElementById("curriculumList");
+const backLink = document.getElementById("backLink");
+
+const metaEncryption = document.getElementById("metaEncryption");
+const metaFileSize = document.getElementById("metaFileSize");
+const metaProgressRatio = document.getElementById("metaProgressRatio");
+const resourcesList = document.getElementById("resourcesList");
+const resCount = document.getElementById("resCount");
+
+/* State */
+let activeCourse = null;
+let activeSections = [];
+let flatLessons = [];
+let currentLessonIndex = -1;
+let countdownTimer = null;
+
+function setOverlay(title, msg, pct, showSpinner) {
+  playerOverlay.hidden = false;
+  overlayTitle.textContent = title || "";
+  overlayMsg.textContent = msg || "";
+  overlaySpinner.style.display = showSpinner ? "block" : "none";
+  if (typeof pct === "number" && pct >= 0) {
+    overlayPbar.hidden = false;
+    overlayPbarFill.style.width = pct + "%";
+  } else {
+    overlayPbar.hidden = true;
+  }
+}
+
+function hideOverlay() {
+  playerOverlay.hidden = true;
+  manualBox.hidden = true;
+}
+
+/* ═══════════════ PLAYBACK & AUTO-ADVANCE ═══════════════ */
+
+async function playLessonAtIndex(index, autoPlayImmediately) {
+  if (index < 0 || index >= flatLessons.length) return;
+  currentLessonIndex = index;
+  cancelNextCountdown();
+
+  const lesson = flatLessons[index];
+  const asset = lesson.asset;
+
+  // Update UI headers
+  currentSectionName.textContent = lesson.rawFolder ? lesson.rawFolder.replace(/_+/g, " ") : "Course Lecture " + (index + 1);
+  currentLessonTitle.textContent = lesson.title;
+  document.title = lesson.title + " — Courses 404";
+  metaFileSize.textContent = lesson.sizeText;
+  metaEncryption.textContent = asset.enc ? "AES-256 Encrypted WebM" : "Standard WebM";
+
+  // Update nav buttons
+  btnPrevLesson.disabled = (index === 0);
+  btnNextLesson.disabled = (index === flatLessons.length - 1);
+
+  // Update completion button state
+  updateCompletionButton();
+
+  // Highlight active lesson in sidebar playlist
+  updateSidebarActiveItem();
+
+  // Save last played
+  CourseEngine.setLastPlayed(activeCourse.tag, asset.name, 0);
+
+  // Ready video
+  videoPlayer.pause();
+  videoPlayer.removeAttribute("src");
+
+  // Unencrypted video stream directly
+  if (!asset.enc) {
+    hideOverlay();
+    videoPlayer.src = asset.browser_download_url;
+    if (autoPlayImmediately !== false) {
+      videoPlayer.play().catch(function () {});
+    }
+    return;
+  }
+
+  // Encrypted asset — check cache first
+  const cacheKey = asset.name + "|" + asset.browser_download_url;
+  if (CourseEngine.blobCache.has(cacheKey)) {
+    const hit = CourseEngine.blobCache.get(cacheKey);
+    CourseEngine.blobCache.delete(cacheKey);
+    CourseEngine.blobCache.set(cacheKey, hit);
+    hideOverlay();
+    videoPlayer.src = hit.url;
+    if (autoPlayImmediately !== false) {
+      videoPlayer.play().catch(function () {});
+    }
+    return;
+  }
+
+  // Demo bytes check
+  if (DEMO_MODE) {
+    setOverlay("Decrypting Lesson…", "Sample video decrypting locally", 50, true);
+    try {
+      const buf = CourseEngine.b64ToBytes(DEMO_ENC_DATA);
+      const plain = await CourseEngine.decryptEnc(buf, creds);
+      const blob = new Blob([plain], { type: "video/webm" });
+      const blobUrl = CourseEngine.cachePut(cacheKey, blob);
+      hideOverlay();
+      videoPlayer.src = blobUrl;
+      if (autoPlayImmediately !== false) videoPlayer.play().catch(function () {});
+    } catch (err) {
+      setOverlay("Decryption error", err.message, -1, false);
+    }
+    return;
+  }
+
+  // Streaming via Proxy
+  if (PROXY) {
+    setOverlay("Downloading & Decrypting…", "Fetching lesson via media proxy…", 0, true);
+    try {
+      const buf = await CourseEngine.fetchWithProgress(
+        PROXY + "?url=" + encodeURIComponent(asset.browser_download_url),
+        function (pct) {
+          setOverlay("Downloading & Decrypting…", "Downloaded " + pct + "% — decrypting in browser", pct, true);
+        }
+      );
+      if (!creds) throw new Error("Encryption key missing");
+      const plain = await CourseEngine.decryptEnc(buf, creds);
+      if (!CourseEngine.isWebM(plain)) throw new Error("Corrupted or invalid WebM file");
+      const blob = new Blob([plain], { type: "video/webm" });
+      const blobUrl = CourseEngine.cachePut(cacheKey, blob);
+      hideOverlay();
+      videoPlayer.src = blobUrl;
+      if (autoPlayImmediately !== false) videoPlayer.play().catch(function () {});
+    } catch (err) {
+      offerManualDecrypt(asset, err.message);
+    }
+    return;
+  }
+
+  // Offline / Manual Mode
+  offerManualDecrypt(asset, "Direct browser streaming is not configured on this host.");
+}
+
+function offerManualDecrypt(asset, reason) {
+  setOverlay("Manual Mode Required", reason, -1, false);
+  manualBox.hidden = false;
+  manualDlLink.href = asset.browser_download_url;
+  manualDlLink.setAttribute("download", asset.name);
+}
+
+manualOpenBtn.addEventListener("click", function () { filePicker.click(); });
+filePicker.addEventListener("change", async function () {
+  const f = filePicker.files && filePicker.files[0];
+  filePicker.value = "";
+  if (!f || currentLessonIndex < 0) return;
+  const asset = flatLessons[currentLessonIndex].asset;
+  setOverlay("Decrypting selected file…", "Decrypting " + f.name + "…", 50, true);
+  try {
+    const buf = await f.arrayBuffer();
+    const plain = await CourseEngine.decryptEnc(buf, creds);
+    if (!CourseEngine.isWebM(plain)) throw new Error("Selected file is not valid decrypted WebM");
+    const blob = new Blob([plain], { type: "video/webm" });
+    const cacheKey = asset.name + "|" + asset.browser_download_url;
+    const blobUrl = CourseEngine.cachePut(cacheKey, blob);
+    hideOverlay();
+    videoPlayer.src = blobUrl;
+    videoPlayer.play().catch(function () {});
+  } catch (err) {
+    setOverlay("Could not decrypt file", err.message, -1, false);
+    manualBox.hidden = false;
+  }
+});
+
+/* Auto-advance countdown on video end */
+videoPlayer.addEventListener("ended", function () {
+  if (currentLessonIndex >= 0) {
+    const asset = flatLessons[currentLessonIndex].asset;
+    CourseEngine.setLessonCompleted(activeCourse.tag, asset.name, true);
+    updateCompletionButton();
+    renderCurriculumCheckboxes();
+    updateProgressUI();
+  }
+
+  if (chkAutoplay.checked && currentLessonIndex + 1 < flatLessons.length) {
+    startNextCountdown();
+  }
+});
+
+// Auto-check as completed if reached > 90%
+videoPlayer.addEventListener("timeupdate", function () {
+  if (!videoPlayer.duration || currentLessonIndex < 0) return;
+  if (videoPlayer.currentTime / videoPlayer.duration > 0.92) {
+    const asset = flatLessons[currentLessonIndex].asset;
+    const prog = CourseEngine.getCourseProgress(activeCourse.tag);
+    if (!prog.completed.includes(asset.name)) {
+      CourseEngine.setLessonCompleted(activeCourse.tag, asset.name, true);
+      updateCompletionButton();
+      renderCurriculumCheckboxes();
+      updateProgressUI();
+    }
+  }
+});
+
+function startNextCountdown() {
+  const nextLesson = flatLessons[currentLessonIndex + 1];
+  countdownNextTitle.textContent = nextLesson.title;
+  let sec = 5;
+  countdownSeconds.textContent = sec;
+  nextCountdownOverlay.hidden = false;
+
+  countdownTimer = setInterval(function () {
+    sec--;
+    countdownSeconds.textContent = sec;
+    if (sec <= 0) {
+      cancelNextCountdown();
+      playLessonAtIndex(currentLessonIndex + 1, true);
+    }
+  }, 1000);
+}
+
+function cancelNextCountdown() {
+  if (countdownTimer) {
+    clearInterval(countdownTimer);
+    countdownTimer = null;
+  }
+  nextCountdownOverlay.hidden = true;
+}
+
+btnPlayNow.addEventListener("click", function () {
+  cancelNextCountdown();
+  if (currentLessonIndex + 1 < flatLessons.length) {
+    playLessonAtIndex(currentLessonIndex + 1, true);
+  }
+});
+
+btnCancelNext.addEventListener("click", cancelNextCountdown);
+
+/* ═══════════════ NAVIGATION & COMPLETION CONTROLS ═══════════════ */
+
+btnPrevLesson.addEventListener("click", function () {
+  if (currentLessonIndex > 0) playLessonAtIndex(currentLessonIndex - 1, true);
+});
+
+btnNextLesson.addEventListener("click", function () {
+  if (currentLessonIndex + 1 < flatLessons.length) playLessonAtIndex(currentLessonIndex + 1, true);
+});
+
+btnCompleteToggle.addEventListener("click", function () {
+  if (currentLessonIndex < 0) return;
+  const asset = flatLessons[currentLessonIndex].asset;
+  const prog = CourseEngine.getCourseProgress(activeCourse.tag);
+  const isDone = prog.completed.includes(asset.name);
+  CourseEngine.setLessonCompleted(activeCourse.tag, asset.name, !isDone);
+  updateCompletionButton();
+  renderCurriculumCheckboxes();
+  updateProgressUI();
+});
+
+function updateCompletionButton() {
+  if (currentLessonIndex < 0) return;
+  const asset = flatLessons[currentLessonIndex].asset;
+  const prog = CourseEngine.getCourseProgress(activeCourse.tag);
+  const isDone = prog.completed.includes(asset.name);
+  if (isDone) {
+    btnCompleteToggle.className = "btn-complete-toggle is-done";
+    completeToggleText.textContent = "Completed ✓";
+  } else {
+    btnCompleteToggle.className = "btn-complete-toggle";
+    completeToggleText.textContent = "Mark as Completed";
+  }
+}
+
+function updateProgressUI() {
+  const stats = CourseEngine.calculateCourseStats(activeCourse.tag, flatLessons.length);
+  headerProgressPct.textContent = stats.percent + "%";
+  sidebarProgressText.textContent = stats.completedCount + " / " + stats.totalCount + " completed";
+  sidebarProgressPctText.textContent = stats.percent + "%";
+  sidebarProgressFill.style.width = stats.percent + "%";
+  metaProgressRatio.textContent = stats.completedCount + " of " + stats.totalCount + " completed (" + stats.percent + "%)";
+}
+
+/* ═══════════════ CURRICULUM SIDEBAR RENDERING ═══════════════ */
+
+function renderCurriculum() {
+  curriculumList.innerHTML = "";
+  sidebarLectureCount.textContent = flatLessons.length + " lectures";
+
+  activeSections.forEach(function (sec) {
+    const secWrap = document.createElement("div");
+    secWrap.className = "section-group";
+
+    const head = document.createElement("div");
+    head.className = "section-head";
+    head.innerHTML =
+      "<div class='section-head-title'>" +
+      "<svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M4 19.5A2.5 2.5 0 0 1 6.5 17H20'></path><path d='M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z'></path></svg>" +
+      "<span></span>" +
+      "</div>" +
+      "<div class='section-head-count'></div>";
+    head.querySelector(".section-head-title span").textContent = sec.title;
+    head.querySelector(".section-head-count").textContent = sec.items.length + " lectures";
+
+    const ul = document.createElement("ul");
+    ul.className = "lesson-items";
+
+    sec.items.forEach(function (item) {
+      const globalIdx = flatLessons.indexOf(item);
+      const li = document.createElement("li");
+      li.className = "lesson-item";
+      li.dataset.index = globalIdx;
+
+      li.innerHTML =
+        "<div class='lesson-chk' data-idx='" + globalIdx + "'>" +
+        "<svg viewBox='0 0 24 24' fill='none'><polyline points='20 6 9 17 4 12'></polyline></svg>" +
+        "</div>" +
+        "<div class='lesson-info'>" +
+        "<div class='lesson-title'>" + (globalIdx + 1) + ". " + item.title + "</div>" +
+        "<div class='lesson-meta'>" +
+        "<span class='lesson-playing-badge'>" +
+        "<svg width='11' height='11' viewBox='0 0 24 24' fill='currentColor'><polygon points='5 3 19 12 5 21 5 3'></polygon></svg>" +
+        "Playing" +
+        "</span>" +
+        "<span>" + item.sizeText + "</span>" +
+        (item.asset.enc ? "<span>· AES-256</span>" : "") +
+        "</div>" +
+        "</div>";
+
+      // Click on row to play
+      li.addEventListener("click", function (e) {
+        if (e.target.closest(".lesson-chk")) return;
+        playLessonAtIndex(globalIdx, true);
+      });
+
+      // Click checkbox to toggle
+      const chk = li.querySelector(".lesson-chk");
+      chk.addEventListener("click", function (e) {
+        e.stopPropagation();
+        const prog = CourseEngine.getCourseProgress(activeCourse.tag);
+        const isDone = prog.completed.includes(item.asset.name);
+        CourseEngine.setLessonCompleted(activeCourse.tag, item.asset.name, !isDone);
+        updateCompletionButton();
+        renderCurriculumCheckboxes();
+        updateProgressUI();
+      });
+
+      ul.appendChild(li);
+    });
+
+    secWrap.appendChild(head);
+    secWrap.appendChild(ul);
+    curriculumList.appendChild(secWrap);
+  });
+
+  renderCurriculumCheckboxes();
+  updateProgressUI();
+}
+
+function renderCurriculumCheckboxes() {
+  const prog = CourseEngine.getCourseProgress(activeCourse.tag);
+  const doneSet = new Set(prog.completed || []);
+  const chks = curriculumList.querySelectorAll(".lesson-chk");
+  chks.forEach(function (chk) {
+    const idx = parseInt(chk.dataset.idx, 10);
+    const assetName = flatLessons[idx].asset.name;
+    if (doneSet.has(assetName)) {
+      chk.classList.add("checked");
+    } else {
+      chk.classList.remove("checked");
+    }
+  });
+}
+
+function updateSidebarActiveItem() {
+  const items = curriculumList.querySelectorAll(".lesson-item");
+  items.forEach(function (item) {
+    const idx = parseInt(item.dataset.index, 10);
+    if (idx === currentLessonIndex) {
+      item.classList.add("active");
+      item.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    } else {
+      item.classList.remove("active");
+    }
+  });
+}
+
+/* ═══════════════ SIDEBAR COLLAPSE TOGGLE ═══════════════ */
+toggleSidebarBtn.addEventListener("click", function () {
+  sidebar.classList.toggle("collapsed");
+});
+
+/* ═══════════════ TABS LOGIC ═══════════════ */
+document.querySelectorAll(".tab-btn").forEach(function (btn) {
+  btn.addEventListener("click", function () {
+    document.querySelectorAll(".tab-btn").forEach(function (b) { b.classList.remove("active"); });
+    document.querySelectorAll(".tab-pane").forEach(function (p) { p.classList.remove("active"); });
+    btn.classList.add("active");
+    const target = document.getElementById("tab-" + btn.dataset.tab);
+    if (target) target.classList.add("active");
+  });
+});
+
+/* ═══════════════ KEYBOARD SHORTCUTS ═══════════════ */
+document.addEventListener("keydown", function (e) {
+  if (["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) return;
+  if (e.key === " " || e.key === "k" || e.key === "K") {
+    e.preventDefault();
+    if (videoPlayer.paused) videoPlayer.play(); else videoPlayer.pause();
+  } else if (e.key === "ArrowRight" || e.key === "l" || e.key === "L") {
+    videoPlayer.currentTime = Math.min(videoPlayer.duration || 0, videoPlayer.currentTime + 5);
+  } else if (e.key === "ArrowLeft" || e.key === "j" || e.key === "J") {
+    videoPlayer.currentTime = Math.max(0, videoPlayer.currentTime - 5);
+  } else if ((e.key === "n" || e.key === "N") && e.shiftKey) {
+    if (currentLessonIndex + 1 < flatLessons.length) playLessonAtIndex(currentLessonIndex + 1, true);
+  } else if ((e.key === "p" || e.key === "P") && e.shiftKey) {
+    if (currentLessonIndex > 0) playLessonAtIndex(currentLessonIndex - 1, true);
+  } else if (e.key === "f" || e.key === "F") {
+    if (!document.fullscreenElement) {
+      videoPlayer.requestFullscreen().catch(function () {});
+    } else {
+      document.exitFullscreen().catch(function () {});
+    }
+  } else if (e.key === "m" || e.key === "M") {
+    videoPlayer.muted = !videoPlayer.muted;
+  }
+});
+
+/* ═══════════════ DATA INITIALIZATION ═══════════════ */
+
+async function fetchReleases(repo) {
+  const all = [];
+  for (let page = 1; page <= MAX_PAGES; page++) {
+    const res = await fetch(PROXY
+      ? PROXY + "/releases?per_page=100&page=" + page
+      : API + "/repos/" + repo.owner + "/" + repo.repo + "/releases?per_page=100&page=" + page,
+      { headers: { Accept: "application/vnd.github+json" } });
+    if (!res.ok) break;
+    const data = await res.json();
+    all.push.apply(all, data);
+    if (data.length < 100) break;
+  }
+  return all;
+}
+
+function loadResources(course) {
+  resourcesList.innerHTML = "";
+  const others = course.others || [];
+  resCount.textContent = others.length;
+
+  if (!others.length) {
+    resourcesList.innerHTML = "<p style='color:var(--ink-muted);font-size:13.5px'>No extra PDF attachments or files for this course.</p>";
+    return;
+  }
+
+  others.forEach(function (file) {
+    const item = document.createElement("div");
+    item.className = "resource-item";
+    item.innerHTML =
+      "<div>" +
+      "<div class='resource-name'>" + file.name + "</div>" +
+      "<div class='resource-size'>" + CourseEngine.formatBytes(file.size) + "</div>" +
+      "</div>" +
+      "<a class='btn-nav' href='" + file.browser_download_url + "' download target='_blank' rel='noopener'>" +
+      "Download" +
+      "</a>";
+    resourcesList.appendChild(item);
+  });
+}
+
+async function init() {
+  const params = new URLSearchParams(location.search);
+  const targetTag = params.get("id") || params.get("course");
+  const targetLesson = params.get("lesson");
+
+  if (DEMO_MODE) {
+    backLink.href = "library.html?demo=1";
+  }
+
+  let model = [];
+  if (DEMO_MODE) {
+    model = getDemoModel();
+  } else {
+    const repo = CourseEngine.detectRepo(location);
+    if (!repo) {
+      model = getDemoModel();
+    } else {
+      try {
+        const releases = await fetchReleases(repo);
+        model = CourseEngine.buildCourseModel(releases);
+      } catch (err) {
+        model = getDemoModel();
+      }
+    }
+  }
+
+  if (!model.length) {
+    courseTitleHeader.textContent = "No courses found";
+    return;
+  }
+
+  // Find requested course or default to first
+  activeCourse = model.find(function (c) {
+    return c.tag === targetTag || (targetTag && c.title.toLowerCase().includes(targetTag.toLowerCase()));
+  }) || model[0];
+
+  courseTagBadge.textContent = activeCourse.tag || "Course";
+  courseTitleHeader.textContent = activeCourse.title;
+
+  activeSections = CourseEngine.structureCurriculum(activeCourse.videos);
+  flatLessons = [];
+  activeSections.forEach(function (sec) {
+    sec.items.forEach(function (it) { flatLessons.push(it); });
+  });
+
+  renderCurriculum();
+  loadResources(activeCourse);
+
+  // Determine starting lesson: target in URL -> last played -> first lesson
+  let startIdx = 0;
+  if (targetLesson) {
+    const match = flatLessons.findIndex(function (l) { return l.asset.name === targetLesson; });
+    if (match >= 0) startIdx = match;
+  } else {
+    const prog = CourseEngine.getCourseProgress(activeCourse.tag);
+    if (prog.lastLesson) {
+      const match = flatLessons.findIndex(function (l) { return l.asset.name === prog.lastLesson; });
+      if (match >= 0) startIdx = match;
+    }
+  }
+
+  playLessonAtIndex(startIdx, false);
+}
+
+/* Embedded Demo Sample Encrypted Payload */
+const DEMO_ENC_DATA = "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";
+
+function getDemoModel() {
+  const mk = function (name, size) {
+    return { name: name, size: size, state: "uploaded", browser_download_url: "#", demo: true, enc: true };
+  };
+  return CourseEngine.buildCourseModel([
+    {
+      tag_name: "webm-43", name: "🎉 YouTube Automation & AI Cash Cow Channels ❤",
+      created_at: new Date(Date.now() - 3600e3).toISOString(),
+      assets: [
+        mk("01_Getting_Started__01-welcome-to-the-system.webm.enc", 181 * 1048576),
+        mk("01_Getting_Started__02-finding-high-cpm-niches.webm.enc", 74 * 1048576),
+        mk("02_AI_Production__03-chatgpt-scriptwriting-prompts.webm.enc", 133 * 1048576),
+        mk("02_AI_Production__04-voiceover-and-elevenlabs-setup.webm.enc", 228 * 1048576),
+        mk("03_Scaling_Revenue__05-monetization-and-sponsorships.webm.enc", 312 * 1048576),
+        { name: "niche-research-template.pdf", size: 218 * 1024, browser_download_url: "#" }
+      ]
+    },
+    {
+      tag_name: "webm-42", name: "⚡ TikTok Automation & Viral Video Blueprint 🤖",
+      created_at: new Date(Date.now() - 86400e3).toISOString(),
+      assets: [
+        mk("01_Strategy__01-tiktok-algorithm-rules.webm.enc", 96 * 1048576),
+        mk("01_Strategy__02-viral-hook-templates.webm.enc", 110 * 1048576),
+        mk("02_Creation__03-capcut-speedrun-editing.webm.enc", 145 * 1048576)
+      ]
+    }
+  ]);
+}
+
+window.addEventListener("DOMContentLoaded", init);
+</script>
+</body>
+</html>
