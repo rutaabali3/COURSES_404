@@ -766,7 +766,7 @@ function prettyTitle(name) {
 }
 
 function buildModel(releases) {
-  const sections = [];
+  const rawSections = [];
   for (const r of releases) {
     const assets = (r.assets || []).filter(function (a) { return a.state !== "draft"; });
     if (!assets.length) continue;
@@ -789,7 +789,7 @@ function buildModel(releases) {
     if (!videos.length) continue;
     videos.sort(function (a, b) { return a.name.localeCompare(b.name, undefined, { numeric: true }); });
     const total = videos.reduce(function (s, a) { return s + (a.size || 0); }, 0);
-    sections.push({
+    rawSections.push({
       tag: r.tag_name || "",
       title: r.name || r.tag_name || "Release",
       date: r.created_at || "",
@@ -798,6 +798,35 @@ function buildModel(releases) {
       total: total
     });
   }
+
+  // Deduplicate sections by normalized course title.
+  // If multiple releases share the same course title (e.g. duplicates),
+  // merge unique video assets together so no lesson is lost.
+  const byTitle = new Map();
+  const sections = [];
+  for (const s of rawSections) {
+    const normKey = (s.title || "").trim().toLowerCase();
+    if (!byTitle.has(normKey)) {
+      byTitle.set(normKey, s);
+      sections.push(s);
+    } else {
+      const existing = byTitle.get(normKey);
+      const existingNames = new Set(existing.videos.map(function (v) { return v.name; }));
+      for (const v of s.videos) {
+        if (!existingNames.has(v.name)) {
+          existing.videos.push(v);
+          existingNames.add(v.name);
+        }
+      }
+      existing.videos.sort(function (a, b) { return a.name.localeCompare(b.name, undefined, { numeric: true }); });
+      existing.total = existing.videos.reduce(function (tot, a) { return tot + (a.size || 0); }, 0);
+      if (new Date(s.date) > new Date(existing.date)) {
+        existing.date = s.date;
+        existing.tag = s.tag;
+      }
+    }
+  }
+
   sections.sort(function (a, b) { return new Date(b.date) - new Date(a.date); });
   return sections;
 }
