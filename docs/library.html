@@ -672,13 +672,30 @@ refreshBtn.addEventListener("click", function () { if (!DEMO_MODE) loadCatalog()
 
 async function fetchReleases(repo) {
   const all = [];
+  let useProxy = !!PROXY;
   for (let page = 1; page <= MAX_PAGES; page++) {
-    const res = await fetch(PROXY
+    let url = useProxy
       ? PROXY + "/releases?per_page=100&page=" + page
-      : API + "/repos/" + repo.owner + "/" + repo.repo + "/releases?per_page=100&page=" + page,
-      { headers: { Accept: "application/vnd.github+json" } });
-    if (!res.ok) break;
+      : API + "/repos/" + repo.owner + "/" + repo.repo + "/releases?per_page=100&page=" + page;
+    let res = null;
+    try {
+      res = await fetch(url, { headers: { Accept: "application/vnd.github+json" } });
+    } catch (e) {
+      res = null;
+    }
+    if ((!res || !res.ok) && useProxy) {
+      console.warn("Proxy releases fetch failed (" + (res ? res.status : "network error") + "), falling back to direct GitHub API");
+      useProxy = false;
+      url = API + "/repos/" + repo.owner + "/" + repo.repo + "/releases?per_page=100&page=" + page;
+      try {
+        res = await fetch(url, { headers: { Accept: "application/vnd.github+json" } });
+      } catch (e) {
+        res = null;
+      }
+    }
+    if (!res || !res.ok) break;
     const data = await res.json();
+    if (!Array.isArray(data) || data.length === 0) break;
     all.push.apply(all, data);
     if (data.length < 100) break;
   }

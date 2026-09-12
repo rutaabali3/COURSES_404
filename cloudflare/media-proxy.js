@@ -53,7 +53,10 @@ export default {
         "/releases?per_page=" + (u.searchParams.get("per_page") || "100") +
         "&page=" + (u.searchParams.get("page") || "1");
       const upstream = await fetch(api, {
-        headers: Object.assign({ Accept: "application/vnd.github+json" }, auth),
+        headers: Object.assign({
+          Accept: "application/vnd.github+json",
+          "User-Agent": "COURSES_404-Media-Proxy",
+        }, auth),
         cf: { cacheEverything: true, cacheTtlByStatus: { "200-299": 120 } },
       });
       const headers = new Headers(upstream.headers);
@@ -67,7 +70,7 @@ export default {
     if (!target.startsWith(env.ALLOW_BASE)) {
       return new Response("forbidden", { status: 403, headers: cors });
     }
-    const fwd = {};
+    const fwd = { "User-Agent": "COURSES_404-Media-Proxy" };
     if (request.headers.get("range")) fwd.Range = request.headers.get("range");
     const upstream = await fetch(target, {
       headers: Object.assign(fwd, auth),
