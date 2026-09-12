@@ -1,1 +1,1 @@
-window.MEDIA_PROXY = null; // no media proxy — manual decrypt mode
+window.MEDIA_PROXY = "https://media-proxy-courses-404.rutaabali3.workers.dev";
