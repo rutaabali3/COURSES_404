@@ -42,16 +42,14 @@
   <!-- Top Header -->
   <header class="site-header">
     <div class="container header-inner">
-      <a class="brand" href="index.html">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-        Courses&nbsp;<em>404</em>
-      </a>
-      <nav class="site-nav">
+      <a class="brand" href="index.html">Courses&nbsp;<em>404</em></a>
+      <nav class="site-nav" id="nav">
         <a href="index.html">Home</a>
-        <a href="library.html" class="active">Library</a>
+        <a href="library.html">Library</a>
         <a href="index.html#sources">Sources &amp; Channels</a>
-        <button class="btn-nav-action" id="refreshBtn" title="Check for new courses">Refresh Catalog</button>
+        <a class="nav-cta" href="library.html">Watch now</a>
       </nav>
+      <button class="nav-toggle" id="navToggle" aria-controls="nav" aria-expanded="false">Menu</button>
     </div>
   </header>
 
@@ -544,6 +542,15 @@ function unlock() {
   } else {
     landing.style.display = "flex";
   }
+})();
+
+(function(){
+  var b = document.getElementById('navToggle'), n = document.getElementById('nav');
+  if(!b || !n) return;
+  b.addEventListener('click', function(){
+    var o = n.classList.toggle('open');
+    b.setAttribute('aria-expanded', o);
+  });
 })();
 </script>
 

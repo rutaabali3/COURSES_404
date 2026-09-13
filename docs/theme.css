@@ -245,11 +245,6 @@ p {
   text-decoration: none;
 }
 
-.site-nav a.active {
-  background: var(--md-sys-color-primary-container);
-  color: var(--md-sys-color-on-primary-container);
-  font-weight: 600;
-}
 
 .site-nav a.nav-cta {
   background: var(--md-sys-color-primary);
