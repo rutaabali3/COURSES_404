@@ -9,288 +9,7 @@
 <link rel="canonical" href="https://rutaabali3.github.io/COURSES_404/library.html">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%231c1b18'/%3E%3Ctext x='32' y='42' font-family='Georgia,serif' font-size='30' font-weight='bold' fill='%23ffffff' text-anchor='middle'%3E404%3C/text%3E%3C/svg%3E">
 
-<style>
-:root{
-  --bg:#f8f9fa;
-  --surface:#ffffff;
-  --surface-subtle:#f1f3f5;
-  --ink:#1c1b18;
-  --muted:#6c757d;
-  --line:#e5e7eb;
-  --line-strong:#d1d5db;
-  --accent:#0d6b4f;
-  --accent-dark:#0a5740;
-  --accent-soft:#eef4f0;
-  --accent-blue:#1d4ed8;
-  --radius:10px;
-  --radius-sm:6px;
-  --shadow-sm:0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-md:0 4px 6px -1px rgba(0,0,0,0.08), 0 2px 4px -1px rgba(0,0,0,0.04);
-  --shadow-hover:0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
-  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
-  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
-  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
-}
-*{box-sizing:border-box}
-body{
-  margin:0;background:var(--bg);color:var(--ink);
-  font:15.5px/1.6 var(--sans);
-  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
-}
-.container{max-width:1280px;margin:0 auto;padding:0 clamp(16px,3vw,32px)}
-a{color:var(--accent);text-decoration:none}
-a:hover{text-decoration:underline}
-img{max-width:100%;display:block}
-h1,h2,h3{font-family:var(--serif);font-weight:600;letter-spacing:-.015em;line-height:1.2}
-
-/* ── Header ─────────────────────────────────────────── */
-.site-header{
-  border-bottom:1px solid var(--line);background:var(--surface);
-  position:sticky;top:0;z-index:30;box-shadow:var(--shadow-sm);
-}
-.header-inner{
-  display:flex;align-items:center;justify-content:space-between;
-  gap:16px;min-height:64px;
-}
-.brand{
-  font-family:var(--serif);font-size:22px;font-weight:700;color:var(--ink);
-  letter-spacing:-.01em;display:inline-flex;align-items:center;gap:6px;
-}
-.brand:hover{text-decoration:none}
-.brand em{font-style:normal;color:var(--accent)}
-.site-nav{display:flex;align-items:center;gap:20px}
-.site-nav a{color:var(--ink);font-size:14.5px;font-weight:500}
-.site-nav a:hover{color:var(--accent);text-decoration:none}
-.site-nav a.active{color:var(--accent);font-weight:600}
-.btn-nav-action{
-  border:1px solid var(--line-strong);background:var(--surface);
-  border-radius:6px;padding:7px 14px;font-size:13.5px;font-weight:600;
-  color:var(--ink);transition:.15s;cursor:pointer;
-}
-.btn-nav-action:hover{border-color:var(--accent);color:var(--accent);text-decoration:none}
-
-/* ── Source Notice Strip ────────────────────────────── */
-.source-strip{
-  background:var(--accent-soft);border-bottom:1px solid rgba(13,107,79,0.15);
-  padding:9px 0;font-size:13px;
-}
-.source-strip-inner{
-  display:flex;align-items:center;flex-wrap:wrap;gap:8px 16px;
-}
-.source-tag{
-  font:700 11px var(--mono);text-transform:uppercase;color:var(--accent);letter-spacing:.06em;
-}
-.source-link{
-  font-weight:600;color:var(--accent);display:inline-flex;align-items:center;gap:5px;
-}
-.source-channels-wrap{
-  display:inline-flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap;
-}
-.source-chip{
-  background:var(--surface);border:1px solid var(--line-strong);border-radius:4px;
-  padding:3px 8px;font-size:12px;color:var(--ink);transition:.15s;
-  display:inline-flex;align-items:center;gap:4px;
-}
-.source-chip:hover{border-color:var(--accent);color:var(--accent);text-decoration:none}
-.source-chip.wa{color:#0f7b58}
-
-/* ── Hero & Student Stats ───────────────────────────── */
-.catalog-hero{
-  padding:40px 0 28px;border-bottom:1px solid var(--line);
-  background:linear-gradient(180deg, #fff 0%, var(--bg) 100%);
-}
-.catalog-title{font-size:clamp(30px,4vw,42px);margin:0 0 10px}
-.catalog-lead{font-size:17px;color:var(--muted);max-width:65ch;margin:0 0 26px}
-
-.stats-bar{
-  display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;
-  margin-top:20px;
-}
-.stat-box{
-  background:var(--surface);border:1px solid var(--line);
-  border-radius:var(--radius);padding:14px 18px;box-shadow:var(--shadow-sm);
-}
-.stat-box .num{font-size:24px;font-weight:700;color:var(--ink);margin-bottom:2px}
-.stat-box .lbl{font-size:12.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-weight:600}
-
-/* ── Filter Bar ─────────────────────────────────────── */
-.filter-section{
-  padding:24px 0 16px;position:sticky;top:64px;background:var(--bg);
-  z-index:25;border-bottom:1px solid var(--line);
-}
-.filter-row{
-  display:flex;align-items:center;justify-content:space-between;
-  gap:16px;flex-wrap:wrap;
-}
-.category-pills{
-  display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none;
-}
-.category-pills::-webkit-scrollbar{display:none}
-.cat-pill{
-  background:var(--surface);border:1px solid var(--line-strong);
-  border-radius:20px;padding:6px 14px;font-size:13px;font-weight:600;
-  color:var(--ink);cursor:pointer;white-space:nowrap;transition:.15s;
-}
-.cat-pill:hover{border-color:var(--accent);color:var(--accent)}
-.cat-pill.active{background:var(--ink);color:#fff;border-color:var(--ink)}
-
-.search-box-wrap{
-  position:relative;width:280px;max-width:100%;
-}
-.search-input{
-  width:100%;background:var(--surface);border:1px solid var(--line-strong);
-  border-radius:20px;padding:8px 16px 8px 36px;font:14px var(--sans);
-  color:var(--ink);outline:none;transition:.15s;
-}
-.search-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(13,107,79,0.12)}
-.search-icon{
-  position:absolute;left:12px;top:50%;transform:translateY(-50%);
-  color:var(--muted);pointer-events:none;
-}
-
-/* ── Course Grid & Udemy Cards ──────────────────────── */
-.catalog-content{
-  padding:32px 0 64px;
-}
-.results-summary{
-  font-size:14px;color:var(--muted);margin-bottom:20px;
-  display:flex;align-items:center;justify-content:space-between;
-}
-.course-grid{
-  display:grid;gap:26px;
-  grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
-}
-
-.udemy-card{
-  background:var(--surface);border:1px solid var(--line);
-  border-radius:var(--radius);overflow:hidden;display:flex;
-  flex-direction:column;box-shadow:var(--shadow-sm);
-  transition:transform .2s ease, box-shadow .2s ease, border-color .2s ease;
-  position:relative;text-decoration:none;color:inherit;
-}
-.udemy-card:hover{
-  transform:translateY(-4px);box-shadow:var(--shadow-hover);
-  border-color:var(--line-strong);text-decoration:none;
-}
-
-/* Banner */
-.card-banner{
-  width:100%;aspect-ratio:16/9;position:relative;overflow:hidden;
-  background:#1e293b;display:flex;align-items:center;justify-content:center;
-}
-.card-banner-img{
-  width:100%;height:100%;object-fit:cover;transition:transform .3s ease;
-}
-.udemy-card:hover .card-banner-img{transform:scale(1.04)}
-
-/* Dynamic vector banner fallback */
-.card-vector-banner{
-  width:100%;height:100%;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;padding:20px;text-align:center;
-  color:#fff;position:relative;
-}
-.banner-badge{
-  font:700 11px var(--mono);text-transform:uppercase;letter-spacing:.08em;
-  padding:4px 10px;border-radius:20px;background:rgba(0,0,0,0.4);
-  backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,0.2);
-  margin-bottom:10px;
-}
-.banner-icon{font-size:38px;margin-bottom:6px;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.3))}
-
-.play-hover-overlay{
-  position:absolute;inset:0;background:rgba(0,0,0,0.35);
-  display:flex;align-items:center;justify-content:center;
-  opacity:0;transition:opacity .2s ease;
-}
-.udemy-card:hover .play-hover-overlay{opacity:1}
-.play-btn-circle{
-  width:52px;height:52px;border-radius:50%;background:#fff;
-  display:flex;align-items:center;justify-content:center;
-  box-shadow:0 4px 12px rgba(0,0,0,0.3);color:#000;
-}
-
-/* Card Body */
-.card-body{
-  padding:18px 20px;flex:1;display:flex;flex-direction:column;
-}
-.card-category{
-  font-size:11.5px;font-weight:700;letter-spacing:.05em;
-  text-transform:uppercase;color:var(--accent);margin-bottom:6px;
-}
-.card-title{
-  font-family:var(--sans);font-size:17px;font-weight:700;
-  line-height:1.35;margin:0 0 8px;color:var(--ink);
-  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
-  overflow:hidden;
-}
-.card-instructor{
-  font-size:13px;color:var(--muted);margin-bottom:12px;
-}
-.card-meta-row{
-  display:flex;align-items:center;gap:12px;font-size:12.5px;
-  color:var(--muted);margin-top:auto;padding-top:12px;
-  border-top:1px solid var(--line);
-}
-.card-meta-row span{display:inline-flex;align-items:center;gap:4px}
-
-/* Progress on Card */
-.card-progress-wrap{
-  margin-top:14px;
-}
-.card-progress-header{
-  display:flex;justify-content:space-between;font-size:12px;
-  font-weight:600;margin-bottom:5px;
-}
-.card-progress-bar{
-  height:6px;background:var(--surface-subtle);border-radius:3px;
-  overflow:hidden;border:1px solid var(--line);
-}
-.card-progress-fill{
-  height:100%;background:var(--accent);transition:width .3s ease;
-}
-.badge-completed{
-  display:inline-flex;align-items:center;gap:4px;
-  background:#dcfce7;color:#15803d;font-size:11.5px;
-  font-weight:700;padding:2px 8px;border-radius:4px;
-}
-
-.card-footer{
-  padding:12px 20px 16px;background:var(--surface);
-  display:flex;align-items:center;justify-content:space-between;
-}
-.btn-card-action{
-  width:100%;background:var(--ink);color:#fff;border:0;
-  border-radius:6px;padding:9px 16px;font:600 13.5px var(--sans);
-  cursor:pointer;display:inline-flex;align-items:center;justify-content:center;
-  gap:6px;transition:.15s;text-decoration:none;
-}
-.btn-card-action:hover{background:#000;color:#fff;text-decoration:none}
-.btn-card-action.in-progress{
-  background:var(--accent);color:#fff;
-}
-.btn-card-action.in-progress:hover{background:var(--accent-dark)}
-
-/* ── Coming Soon / Setup Screen ─────────────────────── */
-#landing{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--bg)}
-.login-box{max-width:420px;width:100%}
-.login-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:30px;box-shadow:var(--shadow-sm)}
-.login-card h2{font-size:22px;margin:0 0 6px}
-.login-card .hint{color:var(--muted);font-size:13.5px;margin-bottom:16px}
-
-/* Footer */
-.site-footer{
-  border-top:1px solid var(--line);background:var(--surface);
-  padding:48px 0 36px;font-size:14px;color:var(--muted);margin-top:auto;
-}
-.footer-grid{
-  display:grid;gap:32px;grid-template-columns:2fr 1fr 1fr;
-}
-@media(max-width:760px){.footer-grid{grid-template-columns:1fr}}
-
-.skel{text-align:center;padding:60px 20px;color:var(--muted)}
-.empty-state{text-align:center;padding:70px 20px;color:var(--muted)}
-.empty-state h3{color:var(--ink);font-size:22px;margin-bottom:6px}
-</style>
+<link rel="stylesheet" href="theme.css">
 </head>
 <body>
 
@@ -417,22 +136,40 @@ h1,h2,h3{font-family:var(--serif);font-weight:600;letter-spacing:-.015em;line-he
 
   <!-- Footer -->
   <footer class="site-footer">
-    <div class="container footer-grid">
-      <div>
-        <h4 style="font-weight:700;color:var(--ink);margin:0 0 10px">Courses 404</h4>
-        <p style="max-width:40ch;font-size:13.5px">Free online video courses on digital skills, freelancing, and monetization. Watch directly in your browser with no accounts or subscriptions.</p>
-      </div>
-      <div>
-        <h4 style="font-weight:700;color:var(--ink);margin:0 0 10px">Quick Links</h4>
-        <div style="display:flex;flex-direction:column;gap:6px;font-size:13.5px">
-          <a href="index.html">Home</a>
-          <a href="library.html">All Courses</a>
-          <a href="index.html#sources">Course Sources</a>
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <a class="brand" href="index.html">Courses&nbsp;<em>404</em></a>
+          <p class="about">Practical video courses on online earning — drafted and curated from <a href="https://ahm7xmakki.com/courses" target="_blank" rel="noopener">ahm7xmakki.com</a> and official WhatsApp community channels.</p>
+        </div>
+        <div>
+          <h4>Explore</h4>
+          <div class="footer-links">
+            <a href="index.html">Home</a>
+            <a href="library.html">The library</a>
+            <a href="index.html#sources">Sources &amp; Channels</a>
+          </div>
+        </div>
+        <div>
+          <h4>Course Source</h4>
+          <div class="footer-links">
+            <a href="https://ahm7xmakki.com/courses" target="_blank" rel="noopener">ahm7xmakki.com/courses</a>
+            <a id="githubReleasesLink" href="#" target="_blank" rel="noopener">GitHub Releases archive</a>
+          </div>
+        </div>
+        <div>
+          <h4>WhatsApp Channels</h4>
+          <div class="footer-links">
+            <a href="https://whatsapp.com/channel/0029VaOqbIr2P59sgcIri51d" target="_blank" rel="noopener">AHM&#8327; Tech</a>
+            <a href="https://whatsapp.com/channel/0029Vb901QrFy724Izy9Wn0m" target="_blank" rel="noopener">Muhmmad Makki</a>
+            <a href="https://whatsapp.com/channel/0029VaeW5vf05MUaVgitg30e" target="_blank" rel="noopener">AHM&#8327; Courses</a>
+            <a href="https://whatsapp.com/channel/0029Var82nZCxoAskPVlhM2T" target="_blank" rel="noopener">UDEMY &#128218; &#120276;&#120283;&#120288;&#8327;</a>
+          </div>
         </div>
       </div>
-      <div>
-        <h4 style="font-weight:700;color:var(--ink);margin:0 0 10px">Archive</h4>
-        <p style="font-size:13.5px">Browse the <a id="githubReleasesLink" href="#" target="_blank" rel="noopener">GitHub Releases archive</a> to view raw video batches and cryptographic hashes.</p>
+      <div class="foot-bottom">
+        <span>&copy; Courses 404 — drafted from <a href="https://ahm7xmakki.com/courses" target="_blank" rel="noopener">ahm7xmakki.com</a>. Every course is free to watch.</span>
+        <span>Follow our WhatsApp channels for new updates.</span>
       </div>
     </div>
   </footer>
