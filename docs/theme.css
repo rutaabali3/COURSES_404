@@ -525,6 +525,7 @@ p {
   text-transform: uppercase;
   font-size: 11px;
   width: fit-content;
+  margin-bottom: 14px;
 }
 
 .source-badge.wa {
@@ -1510,7 +1511,7 @@ p {
   padding-bottom: 8px;
 }
 
-.section-head {
+.section-group .section-head {
   padding: 10px 14px;
   background: var(--md-sys-color-surface-container);
   border-radius: var(--radius-sm);
@@ -1525,7 +1526,7 @@ p {
   transition: var(--md-hover-transition);
 }
 
-.section-head:hover {
+.section-group .section-head:hover {
   background: var(--md-sys-color-surface-container-high);
 }
 

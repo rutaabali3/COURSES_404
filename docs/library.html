@@ -37,7 +37,7 @@
 </div>
 
 <!-- ═══════════ APP (The Udemy-Style Course Catalog) ═══════════ -->
-<div id="app" hidden>
+<div id="app">
 
   <!-- Top Header -->
   <header class="site-header">
@@ -201,7 +201,6 @@ const searchBox = document.getElementById("searchBox");
 const categoryPills = document.getElementById("categoryPills");
 const resultsCount = document.getElementById("resultsCount");
 const noticeBanner = document.getElementById("noticeBanner");
-const refreshBtn = document.getElementById("refreshBtn");
 const githubReleasesLink = document.getElementById("githubReleasesLink");
 
 const statTotalCourses = document.getElementById("statTotalCourses");
@@ -401,7 +400,6 @@ categoryPills.addEventListener("click", function (e) {
 });
 
 searchBox.addEventListener("input", applyFilter);
-refreshBtn.addEventListener("click", function () { if (!DEMO_MODE) loadCatalog(); });
 
 /* ═══════════════ DATA LOADING ═══════════════ */
 
@@ -531,16 +529,17 @@ function getDemoCourses() {
 /* ═══════════════ UNLOCK / BOOT ═══════════════ */
 
 function unlock() {
-  landing.style.display = "none";
-  app.hidden = false;
+  if (landing) landing.style.display = "none";
+  if (app) app.hidden = false;
   loadCatalog();
 }
 
 (function boot() {
-  if (AUTH.configured) {
+  if (AUTH && AUTH.configured) {
     unlock();
-  } else {
+  } else if (landing && app) {
     landing.style.display = "flex";
+    app.hidden = true;
   }
 })();
 
