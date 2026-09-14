@@ -10,7 +10,7 @@
 
 <link rel="stylesheet" href="theme.css">
 </head>
-<body>
+<body oncontextmenu="return false;">
 
 <!-- ═══════════ TOP NAVIGATION ═══════════ -->
 <header class="top-nav">
@@ -39,8 +39,8 @@
 
   <!-- Left: Player Stage & Lesson Info -->
   <main class="classroom-main">
-    <div class="player-viewport" id="playerViewport">
-      <video id="videoPlayer" controls playsinline controlslist="nodownload"></video>
+    <div class="player-viewport" id="playerViewport" oncontextmenu="return false;" ondragstart="return false;">
+      <video id="videoPlayer" controls playsinline controlslist="nodownload noplaybackrate" disablepictureinpicture disableremoteplayback oncontextmenu="return false;" ondragstart="return false;"></video>
 
       <!-- Status / Decrypting Overlay -->
       <div class="player-overlay" id="playerOverlay" hidden>
@@ -254,6 +254,49 @@ let flatLessons = [];
 let currentLessonIndex = -1;
 let countdownTimer = null;
 
+/* ═══════════════ VIDEO DOWNLOAD PROTECTION ═══════════════ */
+// Block right-click / context menu, drag-and-drop, and save keys across all aspects
+function suppressEvent(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  return false;
+}
+
+["contextmenu", "dragstart"].forEach(function (evt) {
+  window.addEventListener(evt, function (e) {
+    if (e.target.closest("#playerViewport") || e.target.closest("video") || e.target.closest(".classroom-main")) {
+      suppressEvent(e);
+    }
+  }, true);
+  playerViewport.addEventListener(evt, suppressEvent, true);
+  videoPlayer.addEventListener(evt, suppressEvent, true);
+});
+
+// Suppress right-click / secondary mouse button press in capturing phase
+playerViewport.addEventListener("pointerdown", function (e) {
+  if (e.button === 2) suppressEvent(e);
+}, true);
+playerViewport.addEventListener("mousedown", function (e) {
+  if (e.button === 2) suppressEvent(e);
+}, true);
+
+// Suppress keyboard shortcuts for Save (Ctrl+S / Cmd+S), View Source (Ctrl+U), and DevTools
+document.addEventListener("keydown", function (e) {
+  if ((e.ctrlKey || e.metaKey) && (e.key === "s" || e.key === "S" || e.key === "u" || e.key === "U")) {
+    suppressEvent(e);
+  }
+  if (e.key === "F12" || ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "I" || e.key === "i" || e.key === "J" || e.key === "j" || e.key === "C" || e.key === "c"))) {
+    suppressEvent(e);
+  }
+}, true);
+
+/* ═══════════════ PER-LESSON DECRYPTION & OVERLAY ENGINE ═══════════════ */
+
+// Registry of in-flight and completed lesson decryption tasks
+// key: lessonIndex -> { status: 'idle'|'loading'|'decrypting'|'ready'|'error', title, msg, pct, showSpinner, error, blobUrl }
+const lessonLoadState = new Map();
+const activeFetchPromises = new Map();
+
 function setOverlay(title, msg, pct, showSpinner) {
   playerOverlay.hidden = false;
   overlayTitle.textContent = title || "";
@@ -270,6 +313,141 @@ function setOverlay(title, msg, pct, showSpinner) {
 function hideOverlay() {
   playerOverlay.hidden = true;
   manualBox.hidden = true;
+}
+
+function updateLessonSidebarBadge(index) {
+  const badge = document.getElementById("lessonStatusBadge-" + index);
+  if (!badge) return;
+  const state = lessonLoadState.get(index);
+  if (!state || state.status === "idle") {
+    badge.hidden = true;
+    return;
+  }
+  if (state.status === "loading" || state.status === "decrypting") {
+    badge.hidden = false;
+    badge.className = "lesson-status-badge loading";
+    const text = (typeof state.pct === "number" && state.pct >= 0)
+      ? (state.pct >= 99 ? "Decrypting…" : state.pct + "%")
+      : "Loading…";
+    badge.innerHTML = "<span class='badge-spinner'></span> " + text;
+  } else if (state.status === "ready") {
+    badge.hidden = false;
+    badge.className = "lesson-status-badge ready";
+    badge.textContent = "Ready ✓";
+  } else if (state.status === "error") {
+    badge.hidden = false;
+    badge.className = "lesson-status-badge error";
+    badge.textContent = "Failed ⚠";
+  }
+}
+
+function setLessonProgress(index, title, msg, pct, showSpinner) {
+  const existing = lessonLoadState.get(index) || {};
+  existing.status = (pct >= 99 || (title && title.toLowerCase().includes("decrypt"))) ? "decrypting" : "loading";
+  existing.title = title;
+  existing.msg = msg;
+  existing.pct = pct;
+  existing.showSpinner = showSpinner;
+  existing.error = null;
+  lessonLoadState.set(index, existing);
+
+  updateLessonSidebarBadge(index);
+
+  // CRITICAL: Only update the main player overlay if this lesson is CURRENTLY selected!
+  // If another lesson is selected (e.g. playing part 1), its playback and screen remain completely clean.
+  if (currentLessonIndex === index) {
+    setOverlay(title, msg, pct, showSpinner);
+  }
+}
+
+function onLessonDecrypted(index, blobUrl, autoPlayImmediately) {
+  const existing = lessonLoadState.get(index) || {};
+  existing.status = "ready";
+  existing.blobUrl = blobUrl;
+  existing.error = null;
+  lessonLoadState.set(index, existing);
+
+  updateLessonSidebarBadge(index);
+
+  // CRITICAL: Only update video player and hide overlay if this lesson is CURRENTLY selected!
+  if (currentLessonIndex === index) {
+    hideOverlay();
+    videoPlayer.src = blobUrl;
+    if (autoPlayImmediately !== false) {
+      videoPlayer.play().catch(function () {});
+    }
+  }
+}
+
+function onLessonDecryptError(index, asset, errorMsg) {
+  const existing = lessonLoadState.get(index) || {};
+  existing.status = "error";
+  existing.error = errorMsg;
+  lessonLoadState.set(index, existing);
+
+  updateLessonSidebarBadge(index);
+
+  // Only display the error dialog if this lesson is currently selected
+  if (currentLessonIndex === index) {
+    offerManualDecrypt(asset, errorMsg);
+  }
+}
+
+async function loadAndDecryptLesson(index, autoPlayImmediately) {
+  if (activeFetchPromises.has(index)) {
+    return activeFetchPromises.get(index);
+  }
+
+  const lesson = flatLessons[index];
+  const asset = lesson.asset;
+  const cacheKey = asset.name + "|" + asset.browser_download_url;
+
+  const loadPromise = (async function () {
+    if (DEMO_MODE) {
+      setLessonProgress(index, "Decrypting Lesson…", "Sample video decrypting locally", 50, true);
+      try {
+        const buf = CourseEngine.b64ToBytes(DEMO_ENC_DATA);
+        const plain = await CourseEngine.decryptEnc(buf, creds);
+        const blob = new Blob([plain], { type: "video/webm" });
+        const blobUrl = CourseEngine.cachePut(cacheKey, blob);
+        onLessonDecrypted(index, blobUrl, autoPlayImmediately);
+      } catch (err) {
+        onLessonDecryptError(index, asset, err.message);
+      }
+      return;
+    }
+
+    if (PROXY) {
+      setLessonProgress(index, "Downloading & Decrypting…", "Fetching lesson via media proxy…", 0, true);
+      try {
+        const buf = await CourseEngine.fetchWithProgress(
+          PROXY + "?url=" + encodeURIComponent(asset.browser_download_url),
+          function (pct) {
+            setLessonProgress(index, "Downloading & Decrypting…", "Downloaded " + pct + "% — decrypting in browser", pct, true);
+          }
+        );
+        if (!creds) throw new Error("Encryption key missing");
+        setLessonProgress(index, "Decrypting Lesson…", "Applying AES-256 decryption in browser…", 99, true);
+        const plain = await CourseEngine.decryptEnc(buf, creds);
+        if (!CourseEngine.isWebM(plain)) throw new Error("Corrupted or invalid WebM file");
+        const blob = new Blob([plain], { type: "video/webm" });
+        const blobUrl = CourseEngine.cachePut(cacheKey, blob);
+        onLessonDecrypted(index, blobUrl, autoPlayImmediately);
+      } catch (err) {
+        onLessonDecryptError(index, asset, err.message);
+      }
+      return;
+    }
+
+    onLessonDecryptError(index, asset, "Direct browser streaming is not configured on this host.");
+  })();
+
+  activeFetchPromises.set(index, loadPromise);
+  try {
+    await loadPromise;
+  } finally {
+    activeFetchPromises.delete(index);
+  }
 }
 
 /* ═══════════════ PLAYBACK & AUTO-ADVANCE ═══════════════ */
@@ -302,10 +480,6 @@ async function playLessonAtIndex(index, autoPlayImmediately) {
   // Save last played
   CourseEngine.setLastPlayed(activeCourse.tag, asset.name, 0);
 
-  // Ready video
-  videoPlayer.pause();
-  videoPlayer.removeAttribute("src");
-
   // Unencrypted video stream directly
   if (!asset.enc) {
     hideOverlay();
@@ -330,49 +504,24 @@ async function playLessonAtIndex(index, autoPlayImmediately) {
     return;
   }
 
-  // Demo bytes check
-  if (DEMO_MODE) {
-    setOverlay("Decrypting Lesson…", "Sample video decrypting locally", 50, true);
-    try {
-      const buf = CourseEngine.b64ToBytes(DEMO_ENC_DATA);
-      const plain = await CourseEngine.decryptEnc(buf, creds);
-      const blob = new Blob([plain], { type: "video/webm" });
-      const blobUrl = CourseEngine.cachePut(cacheKey, blob);
-      hideOverlay();
-      videoPlayer.src = blobUrl;
-      if (autoPlayImmediately !== false) videoPlayer.play().catch(function () {});
-    } catch (err) {
-      setOverlay("Decryption error", err.message, -1, false);
-    }
+  // Ready video for new lesson (pause/clear previous media while new one loads)
+  videoPlayer.pause();
+  videoPlayer.removeAttribute("src");
+
+  // Check if this lesson is already downloading/decrypting in background
+  const state = lessonLoadState.get(index);
+  if (state && (state.status === "loading" || state.status === "decrypting")) {
+    setOverlay(state.title, state.msg, state.pct, state.showSpinner);
     return;
   }
 
-  // Streaming via Proxy
-  if (PROXY) {
-    setOverlay("Downloading & Decrypting…", "Fetching lesson via media proxy…", 0, true);
-    try {
-      const buf = await CourseEngine.fetchWithProgress(
-        PROXY + "?url=" + encodeURIComponent(asset.browser_download_url),
-        function (pct) {
-          setOverlay("Downloading & Decrypting…", "Downloaded " + pct + "% — decrypting in browser", pct, true);
-        }
-      );
-      if (!creds) throw new Error("Encryption key missing");
-      const plain = await CourseEngine.decryptEnc(buf, creds);
-      if (!CourseEngine.isWebM(plain)) throw new Error("Corrupted or invalid WebM file");
-      const blob = new Blob([plain], { type: "video/webm" });
-      const blobUrl = CourseEngine.cachePut(cacheKey, blob);
-      hideOverlay();
-      videoPlayer.src = blobUrl;
-      if (autoPlayImmediately !== false) videoPlayer.play().catch(function () {});
-    } catch (err) {
-      offerManualDecrypt(asset, err.message);
-    }
+  if (state && state.status === "error") {
+    offerManualDecrypt(asset, state.error);
     return;
   }
 
-  // Offline / Manual Mode
-  offerManualDecrypt(asset, "Direct browser streaming is not configured on this host.");
+  // Otherwise, start downloading & decrypting this lesson
+  loadAndDecryptLesson(index, autoPlayImmediately);
 }
 
 function offerManualDecrypt(asset, reason) {
@@ -387,8 +536,9 @@ filePicker.addEventListener("change", async function () {
   const f = filePicker.files && filePicker.files[0];
   filePicker.value = "";
   if (!f || currentLessonIndex < 0) return;
-  const asset = flatLessons[currentLessonIndex].asset;
-  setOverlay("Decrypting selected file…", "Decrypting " + f.name + "…", 50, true);
+  const targetIndex = currentLessonIndex;
+  const asset = flatLessons[targetIndex].asset;
+  setLessonProgress(targetIndex, "Decrypting selected file…", "Decrypting " + f.name + "…", 50, true);
   try {
     const buf = await f.arrayBuffer();
     const plain = await CourseEngine.decryptEnc(buf, creds);
@@ -396,11 +546,9 @@ filePicker.addEventListener("change", async function () {
     const blob = new Blob([plain], { type: "video/webm" });
     const cacheKey = asset.name + "|" + asset.browser_download_url;
     const blobUrl = CourseEngine.cachePut(cacheKey, blob);
-    hideOverlay();
-    videoPlayer.src = blobUrl;
-    videoPlayer.play().catch(function () {});
+    onLessonDecrypted(targetIndex, blobUrl, true);
   } catch (err) {
-    setOverlay("Could not decrypt file", err.message, -1, false);
+    onLessonDecryptError(targetIndex, asset, err.message);
     manualBox.hidden = false;
   }
 });
@@ -554,6 +702,7 @@ function renderCurriculum() {
         "<svg width='11' height='11' viewBox='0 0 24 24' fill='currentColor'><polygon points='5 3 19 12 5 21 5 3'></polygon></svg>" +
         "Playing" +
         "</span>" +
+        "<span class='lesson-status-badge' id='lessonStatusBadge-" + globalIdx + "' hidden></span>" +
         "<span>" + item.sizeText + "</span>" +
         (item.asset.enc ? "<span>· AES-256</span>" : "") +
         "</div>" +
@@ -578,6 +727,13 @@ function renderCurriculum() {
       });
 
       ul.appendChild(li);
+
+      if (CourseEngine.blobCache.has(item.asset.name + "|" + item.asset.browser_download_url)) {
+        const existing = lessonLoadState.get(globalIdx) || {};
+        existing.status = "ready";
+        lessonLoadState.set(globalIdx, existing);
+      }
+      updateLessonSidebarBadge(globalIdx);
     });
 
     secWrap.appendChild(head);
