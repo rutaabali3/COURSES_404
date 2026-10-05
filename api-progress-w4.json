@@ -417,7 +417,8 @@
    "id": 240,
    "name": "⚡ YT Shorts Automation 🤖",
    "url": "https://drive.google.com/drive/folders/1crlnm4IABNVLSTLXDuqUEV7h9ehw-yS5",
-   "attempts": 1
+   "attempts": 1,
+   "status": "done"
   }
  ]
 }
