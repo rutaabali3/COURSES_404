@@ -795,7 +795,8 @@
    "id": 454,
    "name": "💎 NGINX Web Server from Scratch 🎀",
    "url": "https://drive.google.com/drive/folders/1AU2OQ_GNJcIu0rWd2nZyGFarsNIvOtF7",
-   "attempts": 1
+   "attempts": 1,
+   "status": "failed"
   }
  ]
 }
