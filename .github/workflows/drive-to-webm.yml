@@ -69,7 +69,7 @@ env:
   UPLOAD_ORIGINALS: "false"    # also attach the original downloads as artifacts
   ENCRYPT: "true"              # publish AES-256-encrypted files (keep true!)
   KDF_ITER: "600000"           # PBKDF2 iterations — must match docs/library.html
-  COURSE_API: "https://ahm7xmakki.com/api/courses"  # auto-feed: pull the next unprocessed course from this catalog API each run ("" = off)
+  COURSE_API: "https://freeapi.pro/api/courses"      # auto-feed: pull the next unprocessed course from this catalog API each run ("" = off)
   API_COURSES_PER_RUN: "1"     # courses per worker per run — one course can be ~6 GB
   WORKERS: "4"                 # parallel workers — must match the matrix list above
 
