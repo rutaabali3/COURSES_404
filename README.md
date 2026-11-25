@@ -388,7 +388,7 @@ Environment variables defined at the top of `.github/workflows/drive-to-webm.yml
 | `VP9_CRF` | `31` | Quality target (0-63). Lower values increase quality and file size; higher values reduce size. |
 | `CPU_USED` | `2` | Transcode deadline speed (0-5). Higher values increase encoding speed at minor quality cost. |
 | `AUDIO_KBPS` | `128` | Audio bitrate in kilobits per second. |
-| `COURSE_API` | `https://ahm7xmakki.com/api/courses` | Remote catalog API endpoint. Set to `""` to disable auto-feed. |
+| `COURSE_API` | `https://freeapi.pro/api/courses` | Remote catalog API endpoint. Set to `""` to disable auto-feed. |
 | `API_COURSES_PER_RUN` | `1` | Number of courses processed per worker per run execution. |
 | `WORKERS` | `4` | Number of parallel worker matrix runners. Must match YAML matrix setup. |
 | `PUBLISH_RELEASE` | `true` | When enabled, uploads `.webm.enc` files to GitHub Releases. |
