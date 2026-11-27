@@ -914,7 +914,8 @@
    "id": 522,
    "name": "Copilot with Microsoft 365 Lead Your Industry with AI Power - Google Drive google.",
    "url": "https://drive.google.com/drive/folders/1mV1B252y-52LIGAURer7dGlxjOYTGwVu",
-   "attempts": 1
+   "attempts": 1,
+   "status": "done"
   }
  ]
 }
