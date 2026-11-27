@@ -900,7 +900,8 @@
    "id": 513,
    "name": "Build laravel apps fast with blueprint",
    "url": "https://drive.google.com/drive/folders/1vFu0J1Y5erblRGjtaYrjpYuIbM7zysim",
-   "attempts": 1
+   "attempts": 1,
+   "status": "failed"
   }
  ]
 }
