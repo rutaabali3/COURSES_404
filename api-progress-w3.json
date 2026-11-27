@@ -853,6 +853,12 @@
    "url": "https://drive.google.com/drive/folders/1zenVlbHAFl28caDhdiGdMn4WUciL_3uw",
    "attempts": 2,
    "status": "failed"
+  },
+  {
+   "id": 491,
+   "name": "Mastering Generative AI: Projects using OpenAI and LangChain",
+   "url": "https://drive.google.com/drive/folders/1KfWNHRlIqMBctxYxnNoVpSQALh0vEaIb",
+   "attempts": 1
   }
  ]
 }
